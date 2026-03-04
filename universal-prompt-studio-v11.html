@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Universal Prompt Studio</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Note: SRI integrity hashes cannot be used with unpkg/CDN URLs that may change.
+       Pin to exact versions (e.g. react@18.2.0) and add integrity= attributes for production use. -->
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+    // === SCHEMA DEFINITIONS ===
+    
+    const MEDIUM_AESTHETICS = {
+      photography:          ['bokeh', 'film_grain', 'lens_flare', 'vignette', 'chromatic_aberration', 'long_exposure_blur', 'tilt_shift', 'HDR', 'teal_orange_grade', 'high_contrast', 'desaturated', 'vintage_faded', 'cross_processed', 'infrared', 'double_exposure'],
+      '3d_render':          ['ray_traced', 'subsurface_scattering', 'ambient_occlusion', 'volumetric_fog', 'caustics', 'PBR_materials', 'motion_blur', 'depth_of_field', 'global_illumination', 'unreal_engine', 'octane_render', 'cycles_render', 'toon_shading', 'wireframe_overlay', 'studio_HDRI'],
+      oil_painting:         ['impasto', 'glazing', 'alla_prima', 'chiaroscuro', 'sfumato', 'palette_knife', 'canvas_texture', 'cracked_paint', 'loose_brushwork', 'tight_realism', 'impressionistic', 'expressionistic', 'old_masters_style', 'plein_air', 'thick_textured_paint'],
+      watercolor:           ['wet_on_wet', 'dry_brush', 'color_blooms', 'granulation', 'rough_paper_texture', 'loose_wash', 'tight_detail', 'color_bleeding', 'hard_edges', 'soft_edges', 'layered_glazes', 'salt_texture', 'lifting_technique', 'masking_fluid', 'monochromatic_wash'],
+      pencil_sketch:        ['hatching', 'cross_hatching', 'stippling', 'contour_lines', 'loose_gesture', 'tight_technical', 'graphite', 'charcoal', 'rough_paper', 'smooth_paper', 'smudged_tone', 'eraser_highlights', 'light_2H_grade', 'dark_6B_grade', 'tonal_shading'],
+      ink_drawing:          ['line_weight_variation', 'stippling', 'brush_ink', 'technical_pen', 'sumi_e', 'woodblock_print', 'crosshatch', 'gestural_brushwork', 'flat_fills', 'negative_space', 'calligraphic', 'etching_style', 'linocut', 'scraperboard', 'comic_inking'],
+      anime:                ['cel_shading', 'soft_shading', 'flat_color', 'speedlines', 'screen_tone', 'chibi', 'shonen', 'shojo', 'mecha', 'isekai', 'slice_of_life', 'dark_fantasy', 'magical_girl', 'retro_80s_anime', 'studio_ghibli_style'],
+      concept_art:          ['silhouette_study', 'value_study', 'color_key', 'mood_study', 'thumbnail_sketch', 'presentation_render', 'environment_design', 'character_turnaround', 'prop_sheet', 'entertainment_design', 'matte_painting', 'cinematic_lighting', 'painterly', 'hard_surface', 'organic_forms'],
+      digital_illustration: ['flat_design', 'gradient_mesh', 'vector_clean', 'textured_brush', 'pixel_perfect', 'isometric', 'long_shadow', 'duotone', 'halftone', 'glitch_art', 'neon_glow', 'sticker_style', 'editorial', 'geometric', 'mixed_media'],
+      claymation:           ['clay_texture', 'stop_motion_feel', 'fingerprint_visible', 'armature_joints', 'imperfect_surface', 'bright_saturated_colors', 'exaggerated_proportions', 'tactile_material', 'wool_felt', 'plasticine', 'miniature_scale', 'loopy_studio_style', 'aardman_style', 'laika_style', 'rough_handmade'],
+    };
+
+    const IMAGE_SCHEMA = {
+      user_intent: { type: 'textarea', label: 'What do you want to create?', placeholder: 'Describe your vision in plain English...', section: 'intent' },
+      // Meta
+      'meta.aspect_ratio': { type: 'select', label: 'Aspect Ratio', options: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9', '3:2'], default: '16:9', section: 'meta' },
+      'meta.quality': { type: 'select', label: 'Quality Mode', options: ['ultra_photorealistic', 'standard', 'raw', 'anime', '3d_render', 'oil_painting', 'watercolor', 'sketch', 'pixel_art', 'vector'], default: 'ultra_photorealistic', section: 'meta' },
+      'meta.steps': { type: 'number', label: 'Steps (10-100)', default: 40, min: 10, max: 100, section: 'meta' },
+      'meta.guidance_scale': { type: 'number', label: 'Guidance Scale (1-20)', default: 7.5, min: 1, max: 20, step: 0.5, section: 'meta' },
+      'meta.seed': { type: 'number', label: 'Seed (for reproducibility)', placeholder: 'Random if empty', section: 'meta' },
+      // Subject
+      'subject.type': { type: 'select', label: 'Subject Type', options: ['person', 'animal', 'cyborg', 'monster', 'robot', 'vehicle', 'object', 'landscape'], default: 'person', section: 'subject' },
+      'subject.name': { type: 'text', label: 'Name (if famous)', placeholder: 'e.g., Batman, Pikachu', section: 'subject' },
+      'subject.description': { type: 'textarea', label: 'Visual Description', placeholder: 'Physical traits, distinguishing features...', section: 'subject' },
+      'subject.age': { type: 'text', label: 'Age', placeholder: 'e.g., 30, elderly, young adult', section: 'subject' },
+      'subject.gender': { type: 'select', label: 'Gender', options: ['', 'male', 'female', 'non-binary', 'androgynous'], section: 'subject' },
+      'subject.expression': { type: 'select', label: 'Expression', options: ['neutral', 'smiling', 'laughing', 'angry', 'screaming', 'crying', 'stoic', 'surprised', 'tired', 'suspicious'], default: 'neutral', section: 'subject' },
+      'subject.pose': { type: 'text', label: 'Pose/Action', placeholder: 'e.g., running, sitting cross-legged, looking over shoulder', section: 'subject' },
+      'subject.position': { type: 'select', label: 'Position in Frame', options: ['center', 'left', 'right', 'far_left', 'far_right', 'background', 'foreground'], default: 'center', section: 'subject' },
+      'subject.hair_style': { type: 'select', label: 'Hair Style', options: ['', 'bald', 'buzz_cut', 'short', 'medium', 'long_straight', 'long_wavy', 'long_curly', 'ponytail', 'bun', 'braids', 'afro', 'dreadlocks', 'mohawk', 'pixie_cut', 'bob'], section: 'subject' },
+      'subject.hair_color': { type: 'select', label: 'Hair Color', options: ['', 'black', 'dark_brown', 'light_brown', 'blonde', 'platinum', 'auburn', 'red', 'grey', 'white', 'blue', 'pink', 'purple', 'green', 'rainbow'], section: 'subject' },
+      'subject.clothing': { type: 'textarea', label: 'Clothing', placeholder: 'Describe outfit, fabric, colors...', section: 'subject' },
+      'subject.accessories': { type: 'text', label: 'Accessories', placeholder: 'e.g., sunglasses, gold chain, backpack', section: 'subject' },
+      // Scene
+      'scene.location': { type: 'text', label: 'Location', placeholder: 'e.g., tokyo street, medieval castle, mars colony', section: 'scene' },
+      'scene.time': { type: 'select', label: 'Time of Day', options: ['golden_hour', 'blue_hour', 'high_noon', 'midnight', 'sunrise', 'sunset', 'twilight'], default: 'golden_hour', section: 'scene' },
+      'scene.weather': { type: 'select', label: 'Weather', options: ['clear_skies', 'overcast', 'rainy', 'stormy', 'snowing', 'foggy', 'hazy'], default: 'clear_skies', section: 'scene' },
+      'scene.lighting_type': { type: 'select', label: 'Lighting Type', options: ['natural_sunlight', 'studio_softbox', 'hard_flash', 'neon_lights', 'candlelight', 'cinematic', 'bioluminescent', 'firelight', 'god_rays', 'rembrandt'], default: 'natural_sunlight', section: 'scene' },
+      'scene.lighting_direction': { type: 'select', label: 'Light Direction', options: ['front_lit', 'back_lit', 'side_lit', 'top_down', 'rim_light', 'silhouette', 'under_lit'], default: 'front_lit', section: 'scene' },
+      'scene.background_elements': { type: 'text', label: 'Background Elements', placeholder: 'e.g., flying cars, cherry blossoms, neon signs', section: 'scene' },
+      // Technical
+      'technical.camera_model': { type: 'select', label: 'Camera Model', options: ['', 'iPhone 15 Pro', 'Sony A7R IV', 'Leica M6', 'Canon EOS R5', 'Hasselblad X2D', 'Polaroid', 'GoPro', 'CCTV'], section: 'technical' },
+      'technical.lens': { type: 'select', label: 'Lens', options: ['16mm', '24mm', '35mm', '50mm', '85mm', '105mm', '200mm', 'macro_100mm', 'fisheye_8mm'], default: '50mm', section: 'technical' },
+      'technical.aperture': { type: 'select', label: 'Aperture', options: ['f/1.2', 'f/1.4', 'f/1.8', 'f/2.8', 'f/4.0', 'f/5.6', 'f/8.0', 'f/11', 'f/16'], default: 'f/2.8', section: 'technical' },
+      'technical.shutter_speed': { type: 'select', label: 'Shutter Speed', options: ['1/8000', '1/4000', '1/1000', '1/500', '1/250', '1/125', '1/60', '1/30', '1s', 'long_exposure'], default: '1/250', section: 'technical' },
+      'technical.iso': { type: 'select', label: 'ISO', options: ['100', '200', '400', '800', '1600', '3200', '6400'], default: '200', section: 'technical' },
+      'technical.film_stock': { type: 'select', label: 'Film Stock', options: ['', 'Kodak Portra 400', 'Kodak Gold 200', 'Fujifilm Pro 400H', 'Fujifilm Velvia 50', 'CineStill 800T', 'Ilford HP5 (B&W)', 'Kodak Tri-X (B&W)', 'Polaroid 600'], section: 'technical' },
+      // Composition
+      'composition.framing': { type: 'select', label: 'Framing', options: ['extreme_close_up', 'close_up', 'medium_shot', 'cowboy_shot', 'full_body', 'wide_shot', 'extreme_wide_shot'], default: 'medium_shot', section: 'composition' },
+      'composition.angle': { type: 'select', label: 'Camera Angle', options: ['eye_level', 'low_angle', 'high_angle', 'dutch_angle', 'bird_eye_view', 'worm_eye_view', 'overhead', 'pov'], default: 'eye_level', section: 'composition' },
+      'composition.focus_point': { type: 'select', label: 'Focus Point', options: ['face', 'eyes', 'hands', 'background', 'foreground_object', 'whole_scene'], default: 'face', section: 'composition' },
+      // Style
+      'style.medium': { type: 'select', label: 'Artistic Medium', options: ['photography', '3d_render', 'oil_painting', 'watercolor', 'pencil_sketch', 'ink_drawing', 'anime', 'concept_art', 'digital_illustration', 'claymation'], default: 'photography', section: 'style' },
+      'style.medium_aesthetics': { type: 'medium_aesthetics', label: 'Medium Aesthetics', section: 'style' },
+      'style.global_aesthetic': { type: 'multiselect', label: 'Global Aesthetic / Mood', options: ['cyberpunk', 'steampunk', 'vaporwave', 'synthwave', 'noir', 'minimalist', 'maximalist', 'gothic', 'baroque', 'retro_80s', 'vintage_50s', 'futuristic', 'post_apocalyptic', 'ethereal', 'dreamcore', 'cottagecore', 'dark_academia', 'solarpunk', 'surrealist', 'brutalist'], section: 'style' },
+      'style.artist_reference': { type: 'text', label: 'Artist / Studio References', placeholder: 'e.g., Greg Rutkowski, Studio Ghibli, Alphonse Mucha', section: 'style' },
+      'style.color_palette': { type: 'text', label: 'Color Palette Override', placeholder: 'e.g., deep navy, gold, off-white — or "monochrome"', section: 'style' },
+      'style.color_temperature': { type: 'select', label: 'Color Temperature', options: ['', 'very_warm', 'warm', 'neutral', 'cool', 'very_cool', 'mixed_warm_cool'], section: 'style' },
+      // Text
+      'text.enabled': { type: 'checkbox', label: 'Include text in image', section: 'text' },
+      'text.content': { type: 'text', label: 'Text Content (keep short)', placeholder: 'e.g., GAME OVER', section: 'text', condition: 'text.enabled' },
+      'text.secondary_content': { type: 'text', label: 'Secondary Text (optional)', placeholder: 'e.g., subtitle or tagline', section: 'text', condition: 'text.enabled' },
+      'text.placement': { type: 'select', label: 'Text Placement', options: ['floating_in_air', 'neon_sign', 'on_tshirt', 'graffiti', 'phone_screen', 'book_cover', 'movie_poster', 'street_sign', 'billboard', 'shop_window', 'wall_mural', 'on_ground', 'skywriting', 'watermark_subtle'], section: 'text', condition: 'text.enabled' },
+      'text.font_style': { type: 'select', label: 'Font Style', options: ['bold_sans_serif', 'elegant_serif', 'handwritten', 'cyberpunk_digital', 'graffiti', 'gothic_blackletter', 'retro_pixel', 'neon_tube', 'chalk', 'stencil', 'brush_script', 'distressed_vintage', 'futuristic_thin', 'horror_dripping', 'carved_stone'], section: 'text', condition: 'text.enabled' },
+      'text.size': { type: 'select', label: 'Text Size', options: ['tiny', 'small', 'medium', 'large', 'massive', 'fills_frame'], default: 'medium', section: 'text', condition: 'text.enabled' },
+      'text.color': { type: 'text', label: 'Text Color', placeholder: 'e.g., bright red, #FF0000, glowing white', section: 'text', condition: 'text.enabled' },
+      'text.effect': { type: 'multiselect', label: 'Text Visual Effect', options: ['glow', 'drop_shadow', 'outline', 'emboss', 'distressed', 'metallic_chrome', 'neon_glow', 'fire', 'ice_frost', 'gold_foil', 'grunge_worn', 'glitch', 'holographic', 'smoke'], section: 'text', condition: 'text.enabled' },
+      'text.integration': { type: 'select', label: 'Surface Integration', options: ['floating', 'carved_into_surface', 'painted_on', 'projected_light', 'embossed', 'burned_in', 'spray_painted', 'tattooed', 'engraved_metal', 'printed_label', 'etched_glass', 'neon_tube_mounted', 'chalk_on_blackboard', 'sand_writing'], section: 'text', condition: 'text.enabled' },
+      'text.script': { type: 'select', label: 'Script / Language System', options: ['latin', 'japanese_kanji', 'arabic', 'cyrillic', 'hebrew', 'korean_hangul', 'chinese_simplified', 'greek', 'runic', 'elvish_tengwar', 'hieroglyphic_style', 'cuneiform_style', 'binary', 'morse_code_visual'], section: 'text', condition: 'text.enabled' },
+      // Advanced
+      'advanced.negative_prompt': { type: 'textarea', label: 'Negative Prompt (things to avoid)', default: 'blur, low quality, distortion, watermark, bad hands, extra fingers, mutated', section: 'advanced' },
+      'advanced.magic_prompt_enhancer': { type: 'checkbox', label: 'Magic Prompt Enhancer', default: true, section: 'advanced' },
+      'advanced.hdr_mode': { type: 'checkbox', label: 'HDR Mode', default: true, section: 'advanced' },
+      'advanced.film_grain': { type: 'select', label: 'Film Grain Intensity', options: ['none', 'subtle', 'moderate', 'heavy', 'extreme'], default: 'none', section: 'advanced' },
+      'advanced.vignette': { type: 'select', label: 'Vignette', options: ['none', 'subtle', 'moderate', 'heavy'], default: 'none', section: 'advanced' },
+      'advanced.chromatic_aberration': { type: 'checkbox', label: 'Chromatic Aberration', section: 'advanced' },
+      'advanced.tiling': { type: 'checkbox', label: 'Seamless / Tiling Texture', section: 'advanced' },
+      'advanced.denoise_strength': { type: 'number', label: 'Denoise Strength (0.0–1.0)', default: 0.75, min: 0, max: 1, step: 0.05, section: 'advanced' },
+      'advanced.style_transfer_strength': { type: 'select', label: 'Style Transfer Strength', options: ['', 'subtle', 'moderate', 'strong', 'maximum'], section: 'advanced' },
+      'advanced.upscale_mode': { type: 'select', label: 'Upscale Mode', options: ['none', '2x', '4x', 'face_enhance', 'creative_upscale'], default: 'none', section: 'advanced' },
+      'advanced.sampler': { type: 'select', label: 'Sampler', options: ['Euler_a', 'DPM++_2M_Karras', 'DPM++_SDE_Karras', 'DDIM', 'UniPC', 'LMS', 'Heun', 'DPM_adaptive'], default: 'DPM++_2M_Karras', section: 'advanced' },
+      'advanced.clip_skip': { type: 'select', label: 'CLIP Skip', options: ['1', '2', '3'], default: '1', section: 'advanced' },
+      'advanced.mood_override': { type: 'select', label: 'Mood Override', options: ['', 'ethereal', 'gritty', 'clean', 'dark_and_moody', 'bright_and_airy', 'vibrant', 'muted_melancholy', 'tense', 'peaceful', 'epic', 'intimate'], section: 'advanced' },
+      'advanced.controlnet_hint': { type: 'text', label: 'ControlNet Hint', placeholder: 'e.g., pose reference, depth map, canny edges', section: 'advanced' },
+    };
+
+    const VIDEO_SCHEMA = {
+      ...IMAGE_SCHEMA,
+      // Override/Add video-specific fields
+      'meta.duration': { type: 'select', label: 'Duration', options: ['5s', '10s', '15s', '30s', '60s'], default: '10s', section: 'meta' },
+      'meta.fps': { type: 'select', label: 'Frame Rate', options: ['24fps', '30fps', '60fps'], default: '24fps', section: 'meta' },
+      // Motion
+      'motion.camera_movement': { type: 'select', label: 'Camera Movement', options: ['static', 'slow_pan_left', 'slow_pan_right', 'slow_dolly_in', 'slow_dolly_out', 'tracking_shot', 'crane_up', 'crane_down', 'handheld', 'orbit'], default: 'static', section: 'motion' },
+      'motion.camera_speed': { type: 'select', label: 'Camera Speed', options: ['very_slow', 'slow', 'medium', 'fast'], default: 'slow', section: 'motion' },
+      'motion.subject_action': { type: 'textarea', label: 'Subject Action', placeholder: 'Describe what the subject does over the duration...', section: 'motion' },
+      'motion.physics': { type: 'select', label: 'Physics Simulation', options: ['standard', 'liquid_simulation', 'particle_effects', 'cloth_physics', 'hair_physics', 'slow_motion'], default: 'standard', section: 'motion' },
+      // Audio
+      'audio.music_style': { type: 'text', label: 'Music Style', placeholder: 'e.g., upbeat electronic, ambient cinematic', section: 'audio' },
+      'audio.sound_effects': { type: 'text', label: 'Sound Effects', placeholder: 'e.g., footsteps, wind, city ambiance', section: 'audio' },
+      'audio.dialogue': { type: 'textarea', label: 'Dialogue/Voiceover', placeholder: 'Any spoken words...', section: 'audio' },
+      // Transitions
+      'transitions.type': { type: 'select', label: 'Transition Style', options: ['none', 'fade', 'cut', 'dissolve', 'wipe'], default: 'none', section: 'transitions' },
+    };
+
+    const INDUSTRY_SKILLS = {
+      // Tech & Development
+      'Frontend Web Dev':      ['React/Vue/Angular', 'CSS & Tailwind', 'TypeScript', 'Accessibility (WCAG)', 'Responsive Design', 'Performance Optimization', 'Component Architecture', 'State Management', 'Browser APIs', 'Unit & E2E Testing'],
+      'Backend Dev':           ['REST API Design', 'Database Design', 'Authentication & Authorization', 'Microservices', 'Caching Strategies', 'Error Handling & Logging', 'SQL Optimization', 'Docker & Containers', 'Security Hardening', 'API Documentation'],
+      'Mobile App Dev':        ['React Native', 'iOS/Android Patterns', 'App Store Optimization', 'Push Notifications', 'Offline-First Design', 'Deep Linking', 'Performance Profiling', 'Gesture Handling', 'Cross-Platform Dev', 'Mobile UI/UX Patterns'],
+      'AI / ML Engineering':   ['Prompt Engineering', 'Model Fine-tuning', 'RAG Architecture', 'Embeddings & Vector DBs', 'Evaluation Metrics', 'Data Pipelines', 'Feature Engineering', 'LLM Orchestration', 'Model Deployment', 'AI Safety & Alignment'],
+      'DevOps & Cloud':        ['CI/CD Pipelines', 'Kubernetes', 'Terraform / IaC', 'Monitoring & Alerting', 'Cloud Architecture (AWS/GCP/Azure)', 'Cost Optimization', 'Security Hardening', 'Load Balancing', 'Incident Response', 'Multi-Cloud Strategy'],
+      'Data Engineering':      ['ETL Pipeline Design', 'Data Modeling', 'SQL Optimization', 'Apache Spark', 'Data Warehousing', 'Data Quality & Validation', 'Streaming Data', 'Schema Design', 'Workflow Orchestration', 'Data Governance'],
+      'Cybersecurity':         ['Threat Modeling', 'Penetration Testing', 'OWASP Standards', 'Vulnerability Assessment', 'Incident Response', 'SIEM & Log Analysis', 'Zero Trust Architecture', 'Cryptography', 'Compliance (SOC2/GDPR)', 'Social Engineering Defense'],
+      'UI/UX Design':          ['User Research', 'Wireframing', 'Prototyping', 'Usability Testing', 'Design Systems', 'Accessibility (WCAG)', 'Information Architecture', 'Interaction Design', 'Visual Hierarchy', 'User Journey Mapping'],
+      'Game Development':      ['Game Loop Design', 'Physics Simulation', 'Shader Programming', 'Level Design Principles', 'AI Pathfinding', 'Multiplayer Networking', 'Asset Pipeline', 'Game Balance', 'Input Systems', 'Performance Profiling'],
+      'Desktop / Systems':     ['Win32 / WinAPI', 'Systems Programming (C/C++/Rust)', 'Memory Management', 'Multithreading', 'Installer & Packaging', 'Windows Registry', 'COM/DCOM', 'Driver Development', 'Cross-Platform Porting', 'Performance Profiling'],
+      'Windows Automation':    ['PowerShell Scripting', 'Task Scheduler', 'Registry Manipulation', 'WMI/CIM Queries', 'Batch Scripting', 'COM Automation', 'Group Policy', 'Sysinternals Tooling', 'Windows Event Log Analysis', 'AutoHotkey'],
+      'Python Development':    ['Pythonic Best Practices', 'asyncio & Concurrency', 'Type Hints & mypy', 'Virtual Environments', 'CLI Tool Design (argparse/typer)', 'Unit Testing (pytest)', 'Packaging & Distribution', 'Data Classes', 'Error Handling Patterns', 'C Extensions / ctypes'],
+      // Business & Marketing
+      'Digital Marketing':     ['SEO Strategy', 'PPC Advertising', 'Email Marketing', 'Conversion Rate Optimization', 'Analytics & Attribution', 'Social Media Strategy', 'Content Marketing', 'A/B Testing', 'Customer Segmentation', 'Growth Hacking'],
+      'Copywriting':           ['Headline Writing', 'Sales Page Copy', 'Email Sequences', 'Brand Voice', 'Storytelling', 'Call to Action (CTA)', 'Feature-to-Benefit Translation', 'UX Microcopy', 'Ad Copy', 'Long-form SEO Content'],
+      'Product Management':    ['Product Roadmapping', 'OKR Setting', 'User Story Writing', 'Competitive Analysis', 'Stakeholder Communication', 'Prioritization Frameworks', 'Go-to-Market Strategy', 'Metrics & KPIs', 'Feature Spec Writing', 'Sprint Planning'],
+      'Business Analysis':     ['Requirements Elicitation', 'Process Mapping', 'Gap Analysis', 'Stakeholder Interviews', 'Use Case Modeling', 'Cost-Benefit Analysis', 'SWOT Analysis', 'Data-Driven Reporting', 'Change Management', 'Business Case Writing'],
+      'Project Management':    ['Agile / Scrum', 'Risk Management', 'Resource Allocation', 'Gantt / Timeline Planning', 'Budget Tracking', 'Status Reporting', 'Scope Management', 'RACI Matrices', 'Retrospectives', 'Dependency Mapping'],
+      'Sales':                 ['Prospecting', 'Discovery Calls', 'Objection Handling', 'Proposal Writing', 'CRM Management', 'Pipeline Management', 'Negotiation', 'Account Management', 'Cold Outreach', 'Win/Loss Analysis'],
+      // Creative & Media
+      'Video Production':      ['Scriptwriting', 'Storyboarding', 'Shot List Planning', 'Editing Workflow', 'Color Grading', 'Audio Mixing', 'Motion Graphics', 'Thumbnail Design', 'YouTube SEO', 'Short-form Optimization'],
+      'Technical Writing':     ['API Documentation', 'User Manuals', 'README Writing', 'Changelog Writing', 'Style Guides', 'Docs-as-Code', 'Diagram Creation', 'Release Notes', 'Tutorials & How-Tos', 'Audience Calibration'],
+      'Graphic Design':        ['Typography', 'Color Theory', 'Brand Identity', 'Logo Design', 'Print Design', 'Vector Illustration', 'Photo Editing', 'Layout Composition', 'Icon Design', 'Mockup Creation'],
+      'Graphic Design — Tools':['Figma', 'Canva Design', 'Adobe Photoshop', 'Adobe Illustrator', 'Adobe InDesign', 'Inkscape', 'Affinity Designer', 'Google Stitch', 'Sketch', 'Framer'],
+      'Brand & Visual Identity': ['Moodboarding', 'Color Palette Generation', 'Font Pairing', 'Style Guide Writing', 'Design System Creation', 'UI Kit Design', 'Export for Web & Print', 'Responsive Asset Creation', 'Brand Guidelines Doc', 'Logo Suite Design'],
+      'AI Content Creation':   ['Prompt Engineering for Image Gen', 'Workflow Automation', 'AI Video Scripting', 'Voice Cloning Guidance', 'Midjourney / Flux Prompting', 'Stable Diffusion Parameters', 'AI Audio Generation', 'Consistency Techniques', 'Batch Generation', 'Model Selection'],
+      // Science & Research
+      'Data Science':          ['Statistical Analysis', 'Hypothesis Testing', 'Regression Modeling', 'Data Visualization', 'Exploratory Data Analysis', 'Python/R for Data', 'Model Interpretation', 'A/B Testing', 'Survey Design', 'Report Writing'],
+      'Research & Academia':   ['Literature Review', 'Citation Management', 'Research Methodology', 'Peer Review', 'Grant Writing', 'Abstract Writing', 'Academic Argument Structure', 'Statistical Reporting', 'IRB & Ethics', 'Publishing Workflow'],
+      'Neuroscience / Psych':  ['Cognitive Neuroscience', 'Experimental Design', 'Behavioral Analysis', 'Neuroimaging Concepts', 'Memory & Learning Models', 'Consciousness Studies', 'Clinical Psychology', 'Survey Instruments', 'Meta-analysis', 'Evidence Appraisal'],
+    };
+
+    const LLM_SCHEMA = {
+      // Skills
+      'skills.picker': { type: 'industry_skills_picker', label: 'Industry Skills Picker', section: 'skills' },
+      'skills.custom': { type: 'text', label: 'Additional Custom Skills (comma-separated)', placeholder: 'e.g., PowerShell, FFmpeg, Blender scripting', section: 'skills' },
+      // Role
+      'role.persona': { type: 'textarea', label: 'Role/Persona', placeholder: 'e.g., You are an expert data scientist with 15 years of experience...', section: 'role' },
+      'role.expertise': { type: 'text', label: 'Areas of Expertise', placeholder: 'e.g., machine learning, statistics, Python', section: 'role' },
+      'role.tone': { type: 'select', label: 'Communication Tone', options: ['professional', 'casual', 'academic', 'friendly', 'formal', 'technical', 'simple', 'persuasive'], default: 'professional', section: 'role' },
+      'role.pov': { type: 'select', label: 'Point of View', options: ['first_person', 'second_person', 'third_person', 'neutral_observer'], default: 'first_person', section: 'role' },
+      'role.seniority': { type: 'select', label: 'Experience Level', options: ['', 'junior', 'mid_level', 'senior', 'staff', 'principal', 'world_class_expert'], section: 'role' },
+      // Task
+      'task.instruction': { type: 'textarea', label: 'Task/Instruction', placeholder: 'What should the AI do? Be specific...', section: 'task' },
+      'task.goal': { type: 'text', label: 'End Goal', placeholder: 'What outcome do you want?', section: 'task' },
+      'task.subtasks': { type: 'textarea', label: 'Subtasks / Steps', placeholder: '1. First do this\n2. Then do this\n3. Finally...', section: 'task' },
+      'task.constraints': { type: 'textarea', label: 'Constraints/Rules', placeholder: 'Things the AI should NOT do, limitations...', section: 'task' },
+      'task.deadline_pressure': { type: 'select', label: 'Response Urgency', options: ['', 'thorough_no_rush', 'balanced', 'quick_summary_first', 'tldr_only'], section: 'task' },
+      // Context
+      'context.background': { type: 'textarea', label: 'Background Information', placeholder: 'Relevant context the AI needs to know...', section: 'context' },
+      'context.audience': { type: 'text', label: 'Target Audience', placeholder: 'Who is this for?', section: 'context' },
+      'context.audience_expertise': { type: 'select', label: 'Audience Expertise Level', options: ['', 'complete_beginner', 'novice', 'intermediate', 'expert', 'mixed'], section: 'context' },
+      'context.domain': { type: 'text', label: 'Domain/Industry', placeholder: 'e.g., healthcare, finance, education', section: 'context' },
+      'context.target_integrations': { type: 'multiselect', label: 'Target Integrations / Tools', options: ['Canva', 'Figma', 'Google Stitch', 'Adobe XD', 'Framer', 'Notion', 'Airtable', 'Google Sheets', 'Slack', 'GitHub', 'Jira', 'Linear', 'Shopify', 'WordPress', 'Webflow', 'Zapier', 'n8n', 'MindStudio', 'Supabase', 'Firebase', 'Vercel', 'Netlify', 'HuggingFace', 'Ollama', 'Make (Integromat)'], section: 'context' },
+      'context.platform': { type: 'select', label: 'Delivery Platform', options: ['', 'chat_interface', 'email', 'blog_post', 'slack_message', 'api_response', 'voice_assistant', 'documentation', 'presentation'], section: 'context' },
+      'context.language': { type: 'text', label: 'Language / Locale', placeholder: 'e.g., English (US), French (CA)', section: 'context' },
+      // Input
+      'input.data': { type: 'textarea', label: 'Input Data', placeholder: 'The actual content to process...', section: 'input' },
+      'input.format': { type: 'text', label: 'Input Format Description', placeholder: 'e.g., CSV data, plain text, JSON', section: 'input' },
+      'input.quality': { type: 'select', label: 'Input Data Quality', options: ['', 'clean_and_complete', 'may_have_errors', 'incomplete_fill_gaps', 'untrusted_verify_first'], section: 'input' },
+      // Output
+      'output.format': { type: 'select', label: 'Output Format', options: ['plain_text', 'markdown', 'json', 'xml', 'csv', 'code', 'bullet_points', 'numbered_list', 'table', 'html'], default: 'plain_text', section: 'output' },
+      'output.length': { type: 'select', label: 'Output Length', options: ['concise', 'moderate', 'detailed', 'comprehensive'], default: 'moderate', section: 'output' },
+      'output.structure': { type: 'textarea', label: 'Output Structure/Template', placeholder: 'Define the structure you want...', section: 'output' },
+      'output.language_style': { type: 'select', label: 'Language Style', options: ['', 'plain_language', 'technical_jargon_ok', 'no_jargon', 'use_analogies', 'data_driven', 'narrative'], section: 'output' },
+      'output.header_usage': { type: 'select', label: 'Header / Section Usage', options: ['', 'use_headers', 'no_headers', 'minimal_headers'], section: 'output' },
+      'output.code_comments': { type: 'select', label: 'Code Comments (if code output)', options: ['', 'verbose_comments', 'inline_only', 'no_comments', 'docstrings_only'], section: 'output' },
+      // Examples
+      'examples.few_shot': { type: 'textarea', label: 'Few-Shot Examples', placeholder: 'Input: ...\nOutput: ...\n\nInput: ...\nOutput: ...', section: 'examples' },
+      'examples.anti_examples': { type: 'textarea', label: 'Anti-Examples (what NOT to produce)', placeholder: 'Input: ...\nBad Output: ...\nWhy bad: ...', section: 'examples' },
+      // Behavior
+      'behavior.reasoning_mode': { type: 'select', label: 'Reasoning Mode', options: ['analytical', 'creative', 'socratic', 'adversarial', 'systematic', 'intuitive', 'critical', 'exploratory'], default: 'analytical', section: 'behavior' },
+      'behavior.framework': { type: 'select', label: 'Prompt Framework', options: ['none', 'ROSES', 'CO-STAR', 'PTCF', 'RAIC', 'IDEAL', 'IMAGES', 'RTF', 'TRACE', 'COAST'], default: 'none', section: 'behavior' },
+      'behavior.priority': { type: 'select', label: 'If Tradeoffs Arise, Prioritize', options: ['accuracy', 'brevity', 'creativity', 'safety', 'completeness', 'speed', 'user_friendliness'], default: 'accuracy', section: 'behavior' },
+      'behavior.forbidden_outputs': { type: 'textarea', label: 'Forbidden Outputs / Hard Rules', placeholder: 'e.g., never use bullet points, avoid jargon, no markdown headers...', section: 'behavior' },
+      'behavior.uncertainty_handling': { type: 'select', label: 'When Uncertain, AI Should', options: ['', 'say_i_dont_know', 'make_best_guess_and_flag', 'ask_clarifying_question', 'provide_multiple_options', 'stop_and_request_more_info'], section: 'behavior' },
+      'behavior.hallucination_guard': { type: 'checkbox', label: 'Enable hallucination guard (flag low-confidence claims)', section: 'behavior' },
+      // Memory
+      'memory.key_facts': { type: 'textarea', label: 'Key Facts to Remember Throughout', placeholder: 'e.g., The user is a Windows developer. The project uses Python 3.11. Always use AMD GPU paths...', section: 'memory' },
+      'memory.persona_persistence': { type: 'checkbox', label: 'Maintain persona consistently across all turns', section: 'memory' },
+      'memory.context_window_hint': { type: 'select', label: 'How to Handle Long Context', options: ['', 'summarize_as_you_go', 'prioritize_recent', 'always_refer_back_to_goals', 'remind_constraints_each_turn'], section: 'memory' },
+      'memory.session_state': { type: 'textarea', label: 'Session State / Running Variables', placeholder: 'e.g., Current filename: main.py, Status: in progress, Last error: line 42...', section: 'memory' },
+      // Citation
+      'citation.style': { type: 'select', label: 'Citation Style', options: ['none', 'inline', 'footnotes', 'end_references', 'APA', 'MLA', 'Chicago', 'IEEE'], default: 'none', section: 'citation' },
+      'citation.source_preference': { type: 'multiselect', label: 'Preferred Source Types', options: ['official_docs', 'peer_reviewed', 'first_hand_experience', 'industry_standards', 'no_sources_needed', 'primary_sources_only'], section: 'citation' },
+      'citation.confidence_labels': { type: 'select', label: 'Label Confidence of Claims', options: ['', 'always', 'only_when_uncertain', 'never'], section: 'citation' },
+      'citation.url_behavior': { type: 'select', label: 'URLs in Response', options: ['', 'include_if_available', 'never_include', 'always_verify_before_citing'], section: 'citation' },
+      // Iteration
+      'iteration.mode': { type: 'select', label: 'Iteration Mode', options: ['single_pass', 'draft_then_refine', 'incremental_build', 'generate_multiple_variants'], default: 'single_pass', section: 'iteration' },
+      'iteration.revision_trigger': { type: 'text', label: 'What Should Trigger a Revision', placeholder: 'e.g., if output exceeds 500 words, if code has errors...', section: 'iteration' },
+      'iteration.feedback_style': { type: 'select', label: 'How to Incorporate Feedback', options: ['', 'rewrite_fully', 'edit_in_place', 'show_diff', 'append_revision_notes'], section: 'iteration' },
+      'iteration.max_cycles': { type: 'select', label: 'Max Revision Cycles Hint', options: ['', '1', '2', '3', 'unlimited'], section: 'iteration' },
+      'iteration.version_label': { type: 'checkbox', label: 'Label each output with a version number (v1, v2...)', section: 'iteration' },
+      // Safety
+      'safety.content_level': { type: 'select', label: 'Content Safety Level', options: ['standard', 'strict_safe', 'children_friendly', 'professional_only', 'no_restriction'], default: 'standard', section: 'safety' },
+      'safety.bias_awareness': { type: 'multiselect', label: 'Bias Checks to Apply', options: ['gender_neutral', 'culturally_inclusive', 'politically_neutral', 'no_ableist_language', 'avoid_stereotypes', 'age_neutral'], section: 'safety' },
+      'safety.disclaimer': { type: 'select', label: 'Disclaimer Requirements', options: ['', 'none', 'add_ai_disclaimer', 'add_professional_advice_warning', 'add_legal_disclaimer', 'add_medical_disclaimer'], section: 'safety' },
+      'safety.pii_handling': { type: 'select', label: 'PII / Sensitive Data Handling', options: ['', 'redact_pii', 'flag_pii_dont_use', 'use_placeholders', 'no_special_handling'], section: 'safety' },
+      'safety.edge_case_behavior': { type: 'select', label: 'On Edge Cases / Ambiguity', options: ['', 'ask_before_proceeding', 'make_safe_assumption', 'refuse_and_explain', 'produce_multiple_interpretations'], section: 'safety' },
+      // Advanced
+      'advanced.chain_of_thought': { type: 'checkbox', label: 'Enable Chain-of-Thought reasoning', section: 'advanced' },
+      'advanced.step_by_step': { type: 'checkbox', label: 'Request step-by-step explanation', section: 'advanced' },
+      'advanced.self_critique': { type: 'checkbox', label: 'Include self-critique/verification', section: 'advanced' },
+      'advanced.temperature_hint': { type: 'select', label: 'Creativity / Temperature Hint', options: ['', 'very_deterministic', 'mostly_deterministic', 'balanced', 'creative', 'very_creative'], section: 'advanced' },
+      'advanced.output_preview': { type: 'checkbox', label: 'Request a brief plan before full output', section: 'advanced' },
+    };
+
+    const SECTION_INFO = {
+      image: {
+        intent: { title: 'Vision', icon: '💡', desc: 'Describe what you want to create' },
+        meta: { title: 'Output Settings', icon: '⚙️', desc: 'Technical generation parameters' },
+        subject: { title: 'Subject', icon: '👤', desc: 'Main character or object' },
+        scene: { title: 'Scene', icon: '🌍', desc: 'Environment and atmosphere' },
+        technical: { title: 'Camera', icon: '📷', desc: 'Virtual photography settings' },
+        composition: { title: 'Composition', icon: '🖼️', desc: 'Framing and angle' },
+        style: { title: 'Style', icon: '🎨', desc: 'Artistic direction' },
+        text: { title: 'Text Rendering', icon: '✏️', desc: 'Text inside the image' },
+        advanced: { title: 'Advanced', icon: '🔧', desc: 'Fine-tuning options' },
+      },
+      video: {
+        intent: { title: 'Vision', icon: '💡', desc: 'Describe what you want to create' },
+        meta: { title: 'Output Settings', icon: '⚙️', desc: 'Duration, framerate, quality' },
+        subject: { title: 'Subject', icon: '👤', desc: 'Main character or object' },
+        scene: { title: 'Scene', icon: '🌍', desc: 'Environment and atmosphere' },
+        motion: { title: 'Motion', icon: '🎬', desc: 'Camera and subject movement' },
+        audio: { title: 'Audio', icon: '🔊', desc: 'Music, SFX, dialogue' },
+        technical: { title: 'Camera', icon: '📷', desc: 'Virtual cinematography' },
+        composition: { title: 'Composition', icon: '🖼️', desc: 'Framing and angle' },
+        style: { title: 'Style', icon: '🎨', desc: 'Artistic direction' },
+        transitions: { title: 'Transitions', icon: '➡️', desc: 'Scene transitions' },
+        text: { title: 'Text Rendering', icon: '✏️', desc: 'Text inside the video' },
+        advanced: { title: 'Advanced', icon: '🔧', desc: 'Fine-tuning options' },
+      },
+      llm: {
+        role:      { title: 'Role & Persona',   icon: '🎭',  desc: 'Who should the AI be?' },
+        skills:    { title: 'Skills',           icon: '🛠️',  desc: 'Industry skills to apply' },
+        task:      { title: 'Task',             icon: '📋',  desc: 'What should it do?' },
+        context:   { title: 'Context',          icon: '📚',  desc: 'Background information' },
+        input:     { title: 'Input',            icon: '📥',  desc: 'Data to process' },
+        output:    { title: 'Output',           icon: '📤',  desc: 'Desired format and structure' },
+        examples:  { title: 'Examples',         icon: '💬',  desc: 'Few-shot demonstrations' },
+        behavior:  { title: 'Behavior',         icon: '🧠',  desc: 'Reasoning mode, frameworks, priorities' },
+        memory:    { title: 'Memory',           icon: '💾',  desc: 'Persistent context and key facts' },
+        citation:  { title: 'Citation',         icon: '📎',  desc: 'Sources and confidence labeling' },
+        iteration: { title: 'Iteration',        icon: '🔁',  desc: 'Drafts, revisions, feedback cycles' },
+        safety:    { title: 'Safety',           icon: '🛡️',  desc: 'Guardrails, bias checks, disclaimers' },
+        advanced:  { title: 'Advanced',         icon: '🔧',  desc: 'Reasoning and creativity options' },
+      }
+    };
+
+    const PRESETS = {
+      image: {
+        'Cinematic Portrait': {
+          'meta.quality': 'ultra_photorealistic',
+          'meta.aspect_ratio': '3:2',
+          'technical.lens': '85mm',
+          'technical.aperture': 'f/1.4',
+          'technical.film_stock': 'Kodak Portra 400',
+          'composition.framing': 'close_up',
+          'scene.time': 'golden_hour',
+          'scene.lighting_type': 'cinematic',
+        },
+        'Cyberpunk Scene': {
+          'meta.quality': 'ultra_photorealistic',
+          'scene.time': 'midnight',
+          'scene.weather': 'rainy',
+          'scene.lighting_type': 'neon_lights',
+          'style.global_aesthetic': ['cyberpunk', 'futuristic'],
+          'scene.background_elements': 'neon signs, flying cars, holograms',
+        },
+        'Anime Character': {
+          'meta.quality': 'anime',
+          'style.medium': 'anime',
+          'composition.framing': 'medium_shot',
+          'subject.expression': 'smiling',
+        },
+        'Product Shot': {
+          'meta.quality': 'ultra_photorealistic',
+          'meta.aspect_ratio': '1:1',
+          'scene.location': 'white studio',
+          'scene.lighting_type': 'studio_softbox',
+          'composition.framing': 'close_up',
+          'technical.aperture': 'f/8.0',
+        }
+      },
+      video: {
+        'Cinematic Commercial': {
+          'meta.duration': '15s',
+          'meta.fps': '24fps',
+          'motion.camera_movement': 'slow_dolly_in',
+          'motion.camera_speed': 'slow',
+          'scene.lighting_type': 'cinematic',
+          'technical.film_stock': 'CineStill 800T',
+        },
+        'Social Media Clip': {
+          'meta.duration': '10s',
+          'meta.aspect_ratio': '9:16',
+          'motion.camera_movement': 'handheld',
+          'audio.music_style': 'upbeat trending',
+        }
+      },
+      llm: {
+        'Code Review': {
+          'role.persona': 'You are a senior software engineer conducting a thorough code review.',
+          'role.expertise': 'clean code, security, performance, best practices',
+          'role.seniority': 'senior',
+          'role.tone': 'technical',
+          'task.instruction': 'Review the provided code for bugs, security issues, performance problems, and suggest improvements.',
+          'output.format': 'markdown',
+          'output.structure': '## Summary\n## Issues Found\n## Suggestions\n## Refactored Code',
+          'behavior.reasoning_mode': 'analytical',
+          'behavior.priority': 'accuracy',
+          'behavior.uncertainty_handling': 'make_best_guess_and_flag',
+          'safety.content_level': 'standard',
+          'advanced.step_by_step': true,
+        },
+        'Content Writer': {
+          'role.persona': 'You are an experienced content writer specializing in engaging, SEO-optimized articles.',
+          'role.tone': 'friendly',
+          'context.platform': 'blog_post',
+          'output.format': 'markdown',
+          'output.length': 'detailed',
+          'output.language_style': 'plain_language',
+          'behavior.reasoning_mode': 'creative',
+          'behavior.priority': 'user_friendliness',
+          'citation.style': 'inline',
+          'iteration.mode': 'draft_then_refine',
+        },
+        'Data Analyst': {
+          'role.persona': 'You are a data analyst who explains insights clearly to non-technical stakeholders.',
+          'role.expertise': 'statistics, visualization, business intelligence',
+          'role.seniority': 'senior',
+          'role.tone': 'professional',
+          'context.audience_expertise': 'novice',
+          'output.format': 'markdown',
+          'output.language_style': 'use_analogies',
+          'behavior.reasoning_mode': 'analytical',
+          'behavior.priority': 'accuracy',
+          'behavior.hallucination_guard': true,
+          'citation.confidence_labels': 'only_when_uncertain',
+          'advanced.chain_of_thought': true,
+        },
+        'Prompt Engineer': {
+          'role.persona': 'You are an expert prompt engineer who creates precise, effective prompts for LLMs.',
+          'role.expertise': 'prompt engineering, LLM behavior, few-shot learning',
+          'role.seniority': 'principal',
+          'role.tone': 'technical',
+          'task.instruction': 'Build an optimized prompt based on the provided goal and context.',
+          'output.format': 'markdown',
+          'behavior.reasoning_mode': 'systematic',
+          'behavior.framework': 'CO-STAR',
+          'behavior.priority': 'accuracy',
+          'iteration.mode': 'draft_then_refine',
+          'advanced.self_critique': true,
+          'advanced.output_preview': true,
+        },
+        'Skeptical Reviewer': {
+          'role.persona': 'You are a rigorous, evidence-based critic who stress-tests ideas and claims.',
+          'role.tone': 'academic',
+          'task.instruction': 'Critically evaluate the provided content for logical fallacies, unsupported claims, and weaknesses.',
+          'output.format': 'markdown',
+          'behavior.reasoning_mode': 'adversarial',
+          'behavior.priority': 'accuracy',
+          'behavior.forbidden_outputs': 'Never soften criticism with excessive praise. Do not hedge conclusions without evidence.',
+          'behavior.hallucination_guard': true,
+          'citation.style': 'inline',
+          'citation.confidence_labels': 'always',
+          'safety.bias_awareness': ['politically_neutral', 'avoid_stereotypes'],
+          'advanced.chain_of_thought': true,
+          'advanced.self_critique': true,
+        },
+        'Python Developer': {
+          'role.persona': 'You are a senior Python developer who writes clean, efficient, well-documented code.',
+          'role.expertise': 'Python, performance optimization, OOP, scripting',
+          'role.seniority': 'senior',
+          'role.tone': 'technical',
+          'output.format': 'code',
+          'output.code_comments': 'inline_only',
+          'behavior.reasoning_mode': 'systematic',
+          'behavior.priority': 'accuracy',
+          'behavior.forbidden_outputs': 'No pseudocode. Always include error handling. No deprecated methods.',
+          'safety.content_level': 'standard',
+          'advanced.step_by_step': true,
+        },
+      }
+    };
+
+    // Safe clipboard utility with fallback for file:// protocol
+    const safeClipboardWrite = async (text) => {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (e) { /* fall through to fallback */ }
+      // Fallback using execCommand
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return true;
+      } catch (e) {
+        console.error('Copy to clipboard failed:', e);
+        return false;
+      }
+    };
+
+    // Industry groupings (static, extracted to module scope for performance)
+    const INDUSTRY_GROUPS = {
+      '💻 Tech & Development': ['Frontend Web Dev','Backend Dev','Mobile App Dev','AI / ML Engineering','DevOps & Cloud','Data Engineering','Cybersecurity','UI/UX Design','Game Development','Desktop / Systems','Windows Automation','Python Development'],
+      '📈 Business & Marketing': ['Digital Marketing','Copywriting','Product Management','Business Analysis','Project Management','Sales'],
+      '🎨 Creative & Media': ['Video Production','Technical Writing','Graphic Design','Graphic Design — Tools','Brand & Visual Identity','AI Content Creation'],
+      '🔬 Science & Research': ['Data Science','Research & Academia','Neuroscience / Psych'],
+    };
+
+    // Safe localStorage write with quota handling
+    const safeLocalStorageSet = (key, value) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+      } catch (e) {
+        console.error('localStorage write failed:', e);
+        alert('Storage is full. Please delete some saved templates or chains to free up space.');
+        return false;
+      }
+    };
+
+    // Validate chain steps loaded from storage
+    const validateChainSteps = (steps) => {
+      if (!Array.isArray(steps) || steps.length === 0) return null;
+      const requiredKeys = ['id', 'name', 'type'];
+      const valid = steps.every(s => s && typeof s === 'object' && requiredKeys.every(k => k in s));
+      if (!valid) return null;
+      return steps.map(s => ({
+        id: s.id,
+        name: s.name || `Step ${s.id}`,
+        type: s.type || 'standard',
+        role: s.role || '',
+        task: s.task || '',
+        inputSource: s.inputSource || 'manual',
+        inputData: s.inputData || '',
+        outputLabel: s.outputLabel || `step_${s.id}_output`,
+        targets: Array.isArray(s.targets) ? s.targets : [],
+        customTarget: s.customTarget || '',
+      }));
+    };
+
+    const CHAIN_TARGETS = [
+      'Canva', 'Figma', 'Google Stitch', 'Adobe XD', 'Framer', 'Webflow', 'Sketch', 'Affinity Designer',
+      'GitHub', 'Vercel', 'Netlify', 'Supabase', 'Firebase', 'WordPress',
+      'Notion', 'Airtable', 'Google Docs', 'Google Sheets', 'Shopify',
+      'n8n', 'Zapier', 'MindStudio', 'HuggingFace', 'Slack',
+    ];
+
+    function ChainBuilder({ onBack }) {
+      const emptyStep = (id) => ({
+        id, name: `Step ${id}`, type: 'standard',
+        role: '', task: '', inputSource: 'manual', inputData: '',
+        outputLabel: `step_${id}_output`,
+        targets: [], customTarget: '',
+      });
+
+      const [steps, setSteps] = useState([emptyStep(1), emptyStep(2)]);
+      const [showExport, setShowExport] = useState(false);
+      const [chainName, setChainName] = useState('');
+      const [copied, setCopied] = useState(false);
+      const [savedChains, setSavedChains] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('promptStudioChains') || '{}'); } catch { return {}; }
+      });
+
+      const nextId = () => steps.length === 0 ? 1 : Math.max(...steps.map(s => s.id)) + 1;
+
+      const addStep = (type = 'standard') => {
+        const id = nextId();
+        setSteps(prev => [...prev, { ...emptyStep(id), type, name: type === 'translate' ? 'Translate' : `Step ${id}` }]);
+      };
+
+      const removeStep = (id) => setSteps(prev => prev.filter(s => s.id !== id));
+
+      const updateStep = (id, field, value) =>
+        setSteps(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+
+      const toggleTarget = (stepId, target) => {
+        setSteps(prev => prev.map(s => {
+          if (s.id !== stepId) return s;
+          const targets = s.targets.includes(target) ? s.targets.filter(t => t !== target) : [...s.targets, target];
+          return { ...s, targets };
+        }));
+      };
+
+      const moveStep = (id, dir) => {
+        setSteps(prev => {
+          const idx = prev.findIndex(s => s.id === id);
+          const next = [...prev];
+          const swap = idx + dir;
+          if (swap < 0 || swap >= next.length) return prev;
+          [next[idx], next[swap]] = [next[swap], next[idx]];
+          return next;
+        });
+      };
+
+      const buildChainJSON = () => {
+        const chain = steps.map((s, i) => {
+          const obj = {
+            step: i + 1,
+            name: s.name,
+            type: s.type,
+            role: s.role || undefined,
+            task: s.task || undefined,
+            input_source: s.inputSource === 'manual' ? 'manual' : steps.find(x => String(x.id) === String(s.inputSource))?.outputLabel || s.inputSource,
+            input_data: s.inputSource === 'manual' && s.inputData ? s.inputData : undefined,
+            output_label: s.outputLabel,
+          };
+          if (s.type === 'translate') {
+            const allTargets = [...s.targets, ...(s.customTarget ? s.customTarget.split(',').map(t => t.trim()).filter(Boolean) : [])];
+            obj.targets = allTargets;
+          }
+          // strip undefined
+          Object.keys(obj).forEach(k => obj[k] === undefined && delete obj[k]);
+          return obj;
+        });
+        return JSON.stringify({ chain }, null, 2);
+      };
+
+      const saveChain = () => {
+        if (!chainName.trim()) return;
+        if (savedChains[chainName] && !confirm(`A chain named "${chainName}" already exists. Overwrite it?`)) return;
+        const updated = { ...savedChains, [chainName]: { steps, savedAt: new Date().toISOString() } };
+        if (safeLocalStorageSet('promptStudioChains', updated)) {
+          setSavedChains(updated);
+          setChainName('');
+        }
+      };
+
+      const copyChain = async () => {
+        const ok = await safeClipboardWrite(buildChainJSON());
+        if (ok) { setCopied(true); setTimeout(() => setCopied(false), 2000); }
+      };
+
+      const downloadChain = () => {
+        const blob = new Blob([buildChainJSON()], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `chain-${Date.now()}.json`; a.click();
+        URL.revokeObjectURL(url);
+      };
+
+      const stepColor = (type) => type === 'translate' ? 'border-orange-400 bg-orange-50' : 'border-blue-300 bg-white';
+      const stepBadge = (type) => type === 'translate'
+        ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700';
+
+      return (
+        <div className="min-h-screen bg-gray-100">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-orange-500 to-pink-600 text-white p-4">
+            <div className="max-w-5xl mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-lg">← Back</button>
+                <div>
+                  <h1 className="text-xl font-bold">🔗 Chain Builder</h1>
+                  <p className="text-sm opacity-80">Build multi-step prompt pipelines</p>
+                </div>
+              </div>
+              <button onClick={() => setShowExport(true)}
+                className="px-4 py-2 bg-white text-orange-600 rounded-lg font-semibold hover:bg-orange-50">
+                Export Chain →
+              </button>
+            </div>
+          </div>
+
+          <div className="max-w-5xl mx-auto p-4 space-y-4">
+            {/* How it works banner */}
+            <div className="bg-white rounded-xl p-4 border-l-4 border-orange-400 shadow-sm">
+              <p className="text-sm text-gray-600">
+                <strong>How it works:</strong> Build sequential steps where each step's output feeds the next.
+                Use <span className="text-blue-600 font-medium">Standard</span> steps for planning and building,
+                then add a <span className="text-orange-600 font-medium">Translate</span> step to push the final
+                build to multiple target platforms simultaneously.
+              </p>
+            </div>
+
+            {/* Step Cards */}
+            {steps.map((step, idx) => (
+              <div key={step.id} className={`rounded-xl border-2 shadow-sm overflow-hidden ${stepColor(step.type)}`}>
+                {/* Step Header */}
+                <div className="flex items-center gap-3 p-4 border-b border-gray-200 bg-white/70">
+                  <span className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600">{idx + 1}</span>
+                  <input
+                    type="text" value={step.name}
+                    onChange={e => updateStep(step.id, 'name', e.target.value)}
+                    className="flex-1 font-semibold text-gray-800 bg-transparent border-b border-dashed border-gray-300 focus:outline-none focus:border-blue-500 text-lg"
+                  />
+                  <span className={`px-2 py-1 rounded text-xs font-semibold ${stepBadge(step.type)}`}>
+                    {step.type === 'translate' ? '🔀 Translate' : '⚙️ Standard'}
+                  </span>
+                  <div className="flex gap-1">
+                    <button onClick={() => moveStep(step.id, -1)} disabled={idx === 0} aria-label="Move step up"
+                      className="p-1 hover:bg-gray-200 rounded disabled:opacity-30 text-gray-500">▲</button>
+                    <button onClick={() => moveStep(step.id, 1)} disabled={idx === steps.length - 1} aria-label="Move step down"
+                      className="p-1 hover:bg-gray-200 rounded disabled:opacity-30 text-gray-500">▼</button>
+                    <button onClick={() => removeStep(step.id)} disabled={steps.length <= 1} aria-label="Remove step"
+                      className="p-1 hover:bg-red-100 rounded disabled:opacity-30 text-red-400 ml-1">✕</button>
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-4">
+                  {/* Input Source */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Input Source</label>
+                      <select value={step.inputSource} onChange={e => updateStep(step.id, 'inputSource', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500">
+                        <option value="manual">✍️ Manual / Paste input</option>
+                        {steps.filter(s => s.id !== step.id && steps.indexOf(s) < idx).map(s => (
+                          <option key={s.id} value={s.id}>← Output of: {s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Output Label</label>
+                      <input type="text" value={step.outputLabel}
+                        onChange={e => updateStep(step.id, 'outputLabel', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g. design_spec, master_artifact" />
+                    </div>
+                  </div>
+
+                  {step.inputSource === 'manual' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Manual Input Data</label>
+                      <textarea value={step.inputData} onChange={e => {
+                          updateStep(step.id, 'inputData', e.target.value);
+                          e.target.style.height = 'auto';
+                          e.target.style.height = Math.max(96, e.target.scrollHeight) + 'px';
+                        }}
+                        onFocus={e => { e.target.style.height = 'auto'; e.target.style.height = Math.max(96, e.target.scrollHeight) + 'px'; }}
+                        rows={4} placeholder="Paste input data here — e.g. a JSON prompt from the LLM Builder, a brand brief, or any text..."
+                        className="w-full p-3 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500 font-mono overflow-hidden min-h-24" />
+                    </div>
+                  )}
+
+                  {/* Role & Task */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Role / Persona</label>
+                      <textarea value={step.role} onChange={e => updateStep(step.id, 'role', e.target.value)}
+                        rows={3} placeholder="e.g. You are a senior UI designer specializing in design systems..."
+                        className="w-full p-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Task Instruction</label>
+                      <textarea value={step.task} onChange={e => updateStep(step.id, 'task', e.target.value)}
+                        rows={3} placeholder="e.g. Analyze the brief and produce a complete design spec including colors, typography, and spacing rules..."
+                        className="w-full p-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                  </div>
+
+                  {/* Translate targets */}
+                  {step.type === 'translate' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">
+                        Target Platforms <span className="text-orange-500">({step.targets.length} selected)</span>
+                      </label>
+                      <div className="grid grid-cols-4 gap-2 mb-3">
+                        {CHAIN_TARGETS.map(t => (
+                          <label key={t} className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer text-xs transition-colors ${step.targets.includes(t) ? 'border-orange-400 bg-orange-50 text-orange-700 font-semibold' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
+                            <input type="checkbox" className="rounded" checked={step.targets.includes(t)}
+                              onChange={() => toggleTarget(step.id, t)} />
+                            {t}
+                          </label>
+                        ))}
+                      </div>
+                      <input type="text" value={step.customTarget}
+                        onChange={e => updateStep(step.id, 'customTarget', e.target.value)}
+                        placeholder="Custom targets (comma-separated, e.g. Framer, internal-design-system)"
+                        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-400" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Add Step Buttons */}
+            <div className="flex gap-3">
+              <button onClick={() => addStep('standard')}
+                className="flex-1 py-3 border-2 border-dashed border-blue-300 text-blue-600 rounded-xl hover:bg-blue-50 font-medium transition-colors">
+                + Add Standard Step
+              </button>
+              <button onClick={() => addStep('translate')}
+                className="flex-1 py-3 border-2 border-dashed border-orange-300 text-orange-600 rounded-xl hover:bg-orange-50 font-medium transition-colors">
+                + Add Translate Step
+              </button>
+            </div>
+
+            {/* Saved Chains */}
+            {Object.keys(savedChains).length > 0 && (
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <h3 className="font-semibold text-gray-700 mb-3">📁 Saved Chains</h3>
+                <div className="space-y-2">
+                  {Object.entries(savedChains).map(([name, chain]) => (
+                    <div key={name} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                      <div>
+                        <span className="font-medium text-gray-800">{name}</span>
+                        <span className="text-gray-600 text-xs ml-2">{chain.steps?.length} steps · {new Date(chain.savedAt).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => { const valid = validateChainSteps(chain.steps); if (valid) setSteps(valid); else alert('This saved chain has invalid data and cannot be loaded.'); }}
+                          className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">Load</button>
+                        <button onClick={() => { if (!confirm(`Delete chain "${name}"?`)) return; const c = {...savedChains}; delete c[name]; setSavedChains(c); safeLocalStorageSet('promptStudioChains', c); }}
+                          className="px-3 py-1 bg-red-400/60 text-white rounded text-sm hover:bg-red-500">Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Export Modal */}
+          {showExport && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="export-chain-title" onKeyDown={e => e.key === 'Escape' && setShowExport(false)}>
+              <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+                <div className="p-4 bg-gray-100 border-b flex items-center justify-between">
+                  <h3 id="export-chain-title" className="text-xl font-bold">🔗 Exported Chain JSON</h3>
+                  <button onClick={() => setShowExport(false)} className="text-2xl hover:text-red-500" aria-label="Close">×</button>
+                </div>
+                <div className="p-4 overflow-auto max-h-[55vh]">
+                  <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm whitespace-pre-wrap">
+                    {buildChainJSON()}
+                  </pre>
+                </div>
+                <div className="p-4 bg-gray-50 border-t space-y-3">
+                  <div className="flex gap-2">
+                    <input type="text" value={chainName} onChange={e => setChainName(e.target.value)}
+                      placeholder="Chain name to save..."
+                      className="flex-1 p-2 border rounded-lg" />
+                    <button onClick={saveChain} disabled={!chainName.trim()}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
+                      💾 Save Chain
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={copyChain}
+                      className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
+                      {copied ? '✓ Copied!' : '📋 Copy JSON'}
+                    </button>
+                    <button onClick={downloadChain}
+                      className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">
+                      📥 Download JSON
+                    </button>
+                  </div>
+                  <p className="text-center text-xs text-gray-600">Pass this chain JSON to Claude Code or your agent runner to execute each step in sequence.</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // === COMPONENTS ===
+
+    function UniversalPromptStudio() {
+      const [promptType, setPromptType] = useState(null);
+      const [showChain, setShowChain] = useState(false);
+      const [currentSection, setCurrentSection] = useState(0);
+      const [formData, setFormData] = useState({});
+      const [savedTemplates, setSavedTemplates] = useState(() => {
+        try {
+          return JSON.parse(localStorage.getItem('promptStudioTemplates') || '{}');
+        } catch { return {}; }
+      });
+      const [templateName, setTemplateName] = useState('');
+      const [copied, setCopied] = useState(false);
+      const [showOutput, setShowOutput] = useState(false);
+      const [viewingTemplate, setViewingTemplate] = useState(null);
+      const [outputMode, setOutputMode] = useState('json'); // 'json' | 'text'
+      const [showImport, setShowImport] = useState(false);
+      const [importText, setImportText] = useState('');
+      const [importError, setImportError] = useState('');
+      const [presetKey, setPresetKey] = useState(0); // for resetting preset dropdown
+      const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+      const isLoadingTemplateRef = useRef(false);
+
+      const schema = promptType === 'image' ? IMAGE_SCHEMA : promptType === 'video' ? VIDEO_SCHEMA : LLM_SCHEMA;
+      const sectionInfo = promptType ? SECTION_INFO[promptType] : {};
+      const sections = Object.keys(sectionInfo);
+
+      useEffect(() => {
+        if (promptType) {
+          // Skip defaults reset when loading a template
+          if (isLoadingTemplateRef.current) {
+            isLoadingTemplateRef.current = false;
+            return;
+          }
+          const currentSchema = promptType === 'image' ? IMAGE_SCHEMA : promptType === 'video' ? VIDEO_SCHEMA : LLM_SCHEMA;
+          const defaults = {};
+          Object.entries(currentSchema).forEach(([key, config]) => {
+            if (config.default !== undefined) {
+              defaults[key] = config.default;
+            }
+          });
+          setFormData(defaults);
+          setCurrentSection(0);
+          setShowOutput(false);
+          setHasUnsavedChanges(false);
+        }
+      }, [promptType]);
+
+      const updateField = useCallback((key, value) => {
+        setFormData(prev => ({ ...prev, [key]: value }));
+        setHasUnsavedChanges(true);
+      }, []);
+
+      const applyPreset = useCallback((presetName) => {
+        const preset = PRESETS[promptType]?.[presetName];
+        if (preset) {
+          setFormData(prev => ({ ...prev, ...preset }));
+          setHasUnsavedChanges(true);
+        }
+        setPresetKey(k => k + 1); // reset dropdown
+      }, [promptType]);
+
+      const loadTemplate = useCallback((name) => {
+        const template = savedTemplates[name];
+        if (template) {
+          isLoadingTemplateRef.current = true;
+          setFormData(template.data);
+          setPromptType(template.type);
+          setCurrentSection(0);
+          setShowOutput(false);
+          setHasUnsavedChanges(false);
+        }
+      }, [savedTemplates]);
+
+      const saveTemplate = useCallback(() => {
+        if (!templateName.trim()) return;
+        if (savedTemplates[templateName] && !confirm(`A template named "${templateName}" already exists. Overwrite it?`)) return;
+        const newTemplates = {
+          ...savedTemplates,
+          [templateName]: { type: promptType, data: formData, savedAt: new Date().toISOString() }
+        };
+        if (safeLocalStorageSet('promptStudioTemplates', newTemplates)) {
+          setSavedTemplates(newTemplates);
+          setTemplateName('');
+          setHasUnsavedChanges(false);
+        }
+      }, [templateName, savedTemplates, promptType, formData]);
+
+      const deleteTemplate = useCallback((name) => {
+        if (!confirm(`Delete template "${name}"?`)) return;
+        const newTemplates = { ...savedTemplates };
+        delete newTemplates[name];
+        setSavedTemplates(newTemplates);
+        safeLocalStorageSet('promptStudioTemplates', newTemplates);
+      }, [savedTemplates]);
+
+      const buildNestedJSON = useCallback((data) => {
+        const result = {};
+        Object.entries(data).forEach(([key, value]) => {
+          if (value === '' || value === undefined || value === null) return;
+          if (Array.isArray(value) && value.length === 0) return;
+          if (key.startsWith('_')) return; // skip internal keys like _industries_selected
+          const keys = key.split('.');
+          let current = result;
+          for (let i = 0; i < keys.length - 1; i++) {
+            // Guard: if existing value is not an object, wrap it to avoid conflict
+            if (current[keys[i]] !== undefined && (typeof current[keys[i]] !== 'object' || Array.isArray(current[keys[i]]))) {
+              current[keys[i]] = { _value: current[keys[i]] };
+            }
+            current[keys[i]] = current[keys[i]] || {};
+            current = current[keys[i]];
+          }
+          current[keys[keys.length - 1]] = value;
+        });
+        return JSON.stringify(result, null, 2);
+      }, []);
+
+      const generatedJSON = useMemo(() => buildNestedJSON(formData), [formData, buildNestedJSON]);
+      const generateJSON = () => generatedJSON;
+
+      const generatedPlainText = useMemo(() => {
+        const d = formData;
+        const lines = [];
+        const add = (label, val) => { if (val && val !== '' && !(Array.isArray(val) && val.length === 0)) lines.push(`${label}: ${Array.isArray(val) ? val.join(', ') : val}`); };
+        const head = (title) => { lines.push(''); lines.push(`=== ${title.toUpperCase()} ===`); };
+
+        if (promptType === 'llm') {
+          head('Role & Persona');
+          add('Persona', d['role.persona']); add('Expertise', d['role.expertise']);
+          add('Tone', d['role.tone']); add('Experience Level', d['role.seniority']); add('Point of View', d['role.pov']);
+
+          const skills = [...(Array.isArray(d['skills.picker']) ? d['skills.picker'] : []), ...(d['skills.custom'] ? d['skills.custom'].split(',').map(s=>s.trim()) : [])].filter(Boolean);
+          if (skills.length) { head('Skills'); lines.push(`Apply the following skills: ${skills.join(', ')}.`); }
+
+          head('Task');
+          add('Instruction', d['task.instruction']); add('Goal', d['task.goal']);
+          add('Subtasks', d['task.subtasks']); add('Constraints', d['task.constraints']); add('Urgency', d['task.deadline_pressure']);
+
+          head('Context');
+          add('Background', d['context.background']); add('Target Audience', d['context.audience']);
+          add('Audience Expertise', d['context.audience_expertise']); add('Domain', d['context.domain']);
+          add('Target Integrations', d['context.target_integrations']);
+          add('Platform', d['context.platform']); add('Language', d['context.language']);
+
+          if (d['input.data'] || d['input.format'] || d['input.quality']) {
+            head('Input');
+            add('Data', d['input.data']); add('Format', d['input.format']); add('Data Quality', d['input.quality']);
+          }
+
+          head('Output');
+          add('Format', d['output.format']); add('Length', d['output.length']);
+          add('Language Style', d['output.language_style']); add('Header Usage', d['output.header_usage']);
+          add('Code Comments', d['output.code_comments']); add('Structure', d['output.structure']);
+
+          if (d['examples.few_shot'] || d['examples.anti_examples']) {
+            head('Examples');
+            add('Few-Shot Examples', d['examples.few_shot']); add('Anti-Examples (avoid)', d['examples.anti_examples']);
+          }
+
+          head('Behavior');
+          add('Reasoning Mode', d['behavior.reasoning_mode']); add('Framework', d['behavior.framework']);
+          add('Prioritize', d['behavior.priority']); add('Uncertainty Handling', d['behavior.uncertainty_handling']);
+          add('Forbidden Outputs', d['behavior.forbidden_outputs']);
+          if (d['behavior.hallucination_guard']) lines.push('Flag any low-confidence claims explicitly.');
+
+          if (d['memory.key_facts'] || d['memory.session_state'] || d['memory.context_window_hint']) {
+            head('Memory & Context');
+            add('Key Facts', d['memory.key_facts']); add('Session State', d['memory.session_state']);
+            add('Long Context Strategy', d['memory.context_window_hint']);
+            if (d['memory.persona_persistence']) lines.push('Maintain persona consistently across all turns.');
+          }
+
+          if (d['citation.style'] && d['citation.style'] !== 'none') {
+            head('Citation');
+            add('Citation Style', d['citation.style']); add('Source Preferences', d['citation.source_preference']);
+            add('Confidence Labels', d['citation.confidence_labels']); add('URL Behavior', d['citation.url_behavior']);
+          }
+
+          if (d['iteration.mode'] && d['iteration.mode'] !== 'single_pass') {
+            head('Iteration');
+            add('Mode', d['iteration.mode']); add('Revision Trigger', d['iteration.revision_trigger']);
+            add('Feedback Style', d['iteration.feedback_style']); add('Max Cycles', d['iteration.max_cycles']);
+            if (d['iteration.version_label']) lines.push('Label each output with a version number (v1, v2...).');
+          }
+
+          if (d['safety.content_level'] || d['safety.disclaimer'] || (Array.isArray(d['safety.bias_awareness']) && d['safety.bias_awareness'].length)) {
+            head('Safety & Guardrails');
+            add('Content Level', d['safety.content_level']); add('Bias Checks', d['safety.bias_awareness']);
+            add('Disclaimer', d['safety.disclaimer']); add('PII Handling', d['safety.pii_handling']);
+            add('Edge Case Behavior', d['safety.edge_case_behavior']);
+          }
+
+          head('Advanced Reasoning');
+          if (d['advanced.chain_of_thought']) lines.push('Use chain-of-thought reasoning.');
+          if (d['advanced.step_by_step']) lines.push('Provide a step-by-step explanation.');
+          if (d['advanced.self_critique']) lines.push('Include self-critique and verification of your output.');
+          if (d['advanced.output_preview']) lines.push('Begin with a brief plan before producing the full output.');
+          add('Creativity Level', d['advanced.temperature_hint']);
+
+        } else {
+          // Image / Video plain text fallback — just flatten nested JSON to readable lines
+          const nested = JSON.parse(buildNestedJSON(formData));
+          const flatten = (obj, prefix='') => {
+            Object.entries(obj).forEach(([k, v]) => {
+              const label = (prefix ? `${prefix} › ${k}` : k).replace(/_/g,' ');
+              if (typeof v === 'object' && !Array.isArray(v)) flatten(v, prefix ? `${prefix} › ${k}` : k);
+              else lines.push(`${label}: ${Array.isArray(v) ? v.join(', ') : v}`);
+            });
+          };
+          flatten(nested);
+        }
+
+        return lines.join('\n').trim();
+      }, [formData, promptType, buildNestedJSON]);
+      const generatePlainText = () => generatedPlainText;
+
+      const importJSON = () => {
+        setImportError('');
+        try {
+          const parsed = JSON.parse(importText);
+          if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+            setImportError('Expected a JSON object at the top level.');
+            return;
+          }
+          const FORBIDDEN_KEYS = ['__proto__', 'constructor', 'prototype'];
+          const currentSchema = promptType === 'image' ? IMAGE_SCHEMA : promptType === 'video' ? VIDEO_SCHEMA : LLM_SCHEMA;
+          const validKeys = new Set(Object.keys(currentSchema));
+          const flat = {};
+          const flattenObj = (obj, prefix='') => {
+            Object.entries(obj).forEach(([k, v]) => {
+              if (FORBIDDEN_KEYS.includes(k)) return; // reject prototype pollution
+              const fullKey = prefix ? `${prefix}.${k}` : k;
+              if (typeof v === 'object' && v !== null && !Array.isArray(v)) flattenObj(v, fullKey);
+              else if (validKeys.has(fullKey) || fullKey === 'user_intent') flat[fullKey] = v;
+            });
+          };
+          flattenObj(parsed);
+          setFormData(prev => ({ ...prev, ...flat }));
+          setShowImport(false);
+          setImportText('');
+          setHasUnsavedChanges(true);
+        } catch(e) {
+          setImportError('Invalid JSON — please check your input and try again.');
+        }
+      };
+
+      const copyToClipboard = async () => {
+        const content = outputMode === 'json' ? generateJSON() : generatePlainText();
+        const ok = await safeClipboardWrite(content);
+        if (ok) { setCopied(true); setTimeout(() => setCopied(false), 2000); }
+      };
+
+      const exportToFile = () => {
+        const isJson = outputMode === 'json';
+        const content = isJson ? generateJSON() : generatePlainText();
+        const blob = new Blob([content], { type: isJson ? 'application/json' : 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${promptType}-prompt-${Date.now()}.${isJson ? 'json' : 'txt'}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+
+      // Render field based on type
+      const renderField = (key, config) => {
+        // Check condition
+        if (config.condition && !formData[config.condition]) return null;
+
+        const value = formData[key] ?? config.default ?? '';
+
+        switch (config.type) {
+          case 'medium_aesthetics': {
+            const medium = formData['style.medium'] || 'photography';
+            const aestheticOptions = MEDIUM_AESTHETICS[medium] || MEDIUM_AESTHETICS['photography'];
+            const selectedAesthetics = Array.isArray(value) ? value : [];
+            return (
+              <div>
+                <p className="text-xs text-gray-600 mb-2 italic">Options shown for: <span className="font-semibold text-blue-500">{medium.replace(/_/g,' ')}</span> — changes with medium selection above</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {aestheticOptions.map(opt => (
+                    <label key={opt} className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer text-sm transition-colors ${selectedAesthetics.includes(opt) ? 'border-purple-500 bg-purple-50 text-purple-700 font-medium' : 'border-gray-200 hover:bg-gray-50'}`}>
+                      <input type="checkbox" className="rounded" checked={selectedAesthetics.includes(opt)}
+                        onChange={e => {
+                          const next = e.target.checked ? [...selectedAesthetics, opt] : selectedAesthetics.filter(v => v !== opt);
+                          updateField(key, next);
+                        }} />
+                      {opt.replace(/_/g,' ')}
+                    </label>
+                  ))}
+                </div>
+                <div className="flex justify-end mt-2">
+                  <button onClick={() => updateField(key, [])} className="text-xs text-red-400 hover:underline">Clear</button>
+                </div>
+              </div>
+            );
+          }
+          case 'industry_skills_picker':
+            const selectedIndustries = formData['_industries_selected'] || [];
+            const selectedSkills = Array.isArray(formData[key]) ? formData[key] : [];
+            const combinedSkills = [...new Set(
+              selectedIndustries.flatMap(ind => INDUSTRY_SKILLS[ind] || [])
+            )];
+            return (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-500 mb-3">1. Select industries to load their top 10 skills:</p>
+                  {Object.entries(INDUSTRY_GROUPS).map(([groupName, industries]) => (
+                    <div key={groupName} className="mb-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{groupName}</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {industries.map(ind => (
+                          <label key={ind} className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer text-sm transition-colors ${selectedIndustries.includes(ind) ? 'border-blue-500 bg-blue-50 text-blue-700 font-medium' : 'border-gray-200 hover:bg-gray-50'}`}>
+                            <input type="checkbox" className="rounded" checked={selectedIndustries.includes(ind)}
+                              onChange={e => {
+                                const next = e.target.checked ? [...selectedIndustries, ind] : selectedIndustries.filter(i => i !== ind);
+                                updateField('_industries_selected', next);
+                                const newCombined = [...new Set(next.flatMap(i => INDUSTRY_SKILLS[i] || []))];
+                                updateField(key, selectedSkills.filter(s => newCombined.includes(s)));
+                              }}
+                            />
+                            {ind}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {combinedSkills.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm text-gray-500">2. Pick the skills to apply <span className="font-semibold text-blue-600">({selectedSkills.length} selected)</span>:</p>
+                      <div className="flex gap-3">
+                        <button onClick={() => updateField(key, combinedSkills)} className="text-xs text-blue-600 hover:underline">Select All</button>
+                        <button onClick={() => updateField(key, [])} className="text-xs text-red-400 hover:underline">Clear</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {combinedSkills.map(skill => (
+                        <label key={skill} className={`flex items-center gap-2 p-2 border rounded-lg cursor-pointer text-sm transition-colors ${selectedSkills.includes(skill) ? 'border-green-500 bg-green-50 text-green-700 font-medium' : 'border-gray-200 hover:bg-gray-50'}`}>
+                          <input type="checkbox" className="rounded" checked={selectedSkills.includes(skill)}
+                            onChange={e => {
+                              const next = e.target.checked ? [...selectedSkills, skill] : selectedSkills.filter(s => s !== skill);
+                              updateField(key, next);
+                            }}
+                          />
+                          {skill}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {combinedSkills.length === 0 && (
+                  <p className="text-sm text-gray-600 italic">← Select at least one industry above to see its skills</p>
+                )}
+              </div>
+            );
+          case 'text':
+            return (
+              <input
+                id={`field-${key}`}
+                type="text"
+                value={value}
+                onChange={e => updateField(key, e.target.value)}
+                placeholder={config.placeholder}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            );
+          case 'number':
+            return (
+              <input
+                id={`field-${key}`}
+                type="number"
+                value={value}
+                onChange={e => updateField(key, parseFloat(e.target.value) || '')}
+                placeholder={config.placeholder}
+                min={config.min}
+                max={config.max}
+                step={config.step || 1}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            );
+          case 'textarea':
+            return (
+              <textarea
+                id={`field-${key}`}
+                value={value}
+                onChange={e => updateField(key, e.target.value)}
+                placeholder={config.placeholder}
+                rows={3}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            );
+          case 'select':
+            return (
+              <select
+                id={`field-${key}`}
+                value={value}
+                onChange={e => {
+                  updateField(key, e.target.value);
+                  if (key === 'style.medium') updateField('style.medium_aesthetics', []);
+                }}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                {config.options.map(opt => (
+                  <option key={opt} value={opt}>{opt.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            );
+          case 'multiselect':
+            const selected = Array.isArray(value) ? value : [];
+            return (
+              <div className="grid grid-cols-3 gap-2">
+                {config.options.map(opt => (
+                  <label key={opt} className="flex items-center gap-2 p-2 border rounded hover:bg-gray-50 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(opt)}
+                      onChange={e => {
+                        const newVal = e.target.checked 
+                          ? [...selected, opt]
+                          : selected.filter(v => v !== opt);
+                        updateField(key, newVal);
+                      }}
+                      className="rounded"
+                    />
+                    {opt.replace(/_/g, ' ')}
+                  </label>
+                ))}
+              </div>
+            );
+          case 'checkbox':
+            return (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!value}
+                  onChange={e => updateField(key, e.target.checked)}
+                  className="rounded w-5 h-5"
+                />
+                <span>{config.label}</span>
+              </label>
+            );
+          default:
+            return null;
+        }
+      };
+
+      // === TYPE SELECTION SCREEN ===
+      if (showChain) return <ChainBuilder onBack={() => setShowChain(false)} />;
+
+      if (!promptType) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="text-center mb-12">
+                <h1 className="text-4xl font-bold text-white mb-4">Universal Prompt Studio</h1>
+                <p className="text-purple-200 text-lg mb-6">Build structured JSON prompts for AI image, video, and text generation</p>
+                <button onClick={() => setShowImport(true)}
+                  className="px-5 py-2 bg-white/15 hover:bg-white/25 text-white rounded-lg border border-white/30 text-sm font-medium transition-colors">
+                  📂 Import Existing JSON Prompt
+                </button>
+              </div>
+
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                {[
+                  { type: 'image', icon: '🖼️', title: 'Image Prompt', desc: 'Gemini, Flux, Midjourney, DALL-E, Stable Diffusion', color: 'from-pink-500 to-rose-500' },
+                  { type: 'video', icon: '🎬', title: 'Video Prompt', desc: 'Veo 3, Sora, Runway, Kling, Hailuo', color: 'from-blue-500 to-cyan-500' },
+                  { type: 'llm', icon: '🤖', title: 'LLM Prompt', desc: 'ChatGPT, Claude, Gemini, Llama', color: 'from-green-500 to-emerald-500' },
+                ].map(({ type, icon, title, desc, color }) => (
+                  <button
+                    key={type}
+                    onClick={() => setPromptType(type)}
+                    className={`p-8 rounded-2xl bg-gradient-to-br ${color} text-white text-left hover:scale-105 transition-transform shadow-xl`}
+                  >
+                    <div className="text-5xl mb-4">{icon}</div>
+                    <h2 className="text-2xl font-bold mb-2">{title}</h2>
+                    <p className="text-sm opacity-80">{desc}</p>
+                  </button>
+                ))}
+                <button
+                  onClick={() => setShowChain(true)}
+                  className="p-8 rounded-2xl bg-gradient-to-br from-orange-500 to-pink-600 text-white text-left hover:scale-105 transition-transform shadow-xl"
+                >
+                  <div className="text-5xl mb-4">🔗</div>
+                  <h2 className="text-2xl font-bold mb-2">Chain Builder</h2>
+                  <p className="text-sm opacity-80">Multi-step pipelines · Plan → Build → Translate to any platform</p>
+                </button>
+              </div>
+
+              {/* Saved Templates */}
+              {Object.keys(savedTemplates).length > 0 && (
+                <div className="bg-white/10 backdrop-blur rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-white font-semibold">📁 Saved Templates</h3>
+                  </div>
+                  <div className="grid gap-2">
+                    {Object.entries(savedTemplates).map(([name, template]) => (
+                      <div key={name} className="flex items-center justify-between bg-white/5 p-3 rounded-lg">
+                        <div>
+                          <span className="text-white font-medium">{name}</span>
+                          <span className="text-purple-300 text-sm ml-2">({template.type})</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setViewingTemplate({ name, template })}
+                            className="px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={() => loadTemplate(name)}
+                            className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+                          >
+                            Load
+                          </button>
+                          <button
+                            onClick={() => deleteTemplate(name)}
+                            className="px-3 py-1 bg-red-500/50 text-white rounded text-sm hover:bg-red-500"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* View Template Modal */}
+              {viewingTemplate && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="view-template-title" onKeyDown={e => e.key === 'Escape' && setViewingTemplate(null)}>
+                  <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+                    <div className="p-4 bg-gray-100 border-b flex items-center justify-between">
+                      <div>
+                        <h3 id="view-template-title" className="text-lg font-bold">{viewingTemplate.name}</h3>
+                        <p className="text-sm text-gray-600">Type: {viewingTemplate.template.type} · Saved: {new Date(viewingTemplate.template.savedAt).toLocaleDateString()}</p>
+                      </div>
+                      <button onClick={() => setViewingTemplate(null)} className="text-2xl hover:text-red-500 ml-4" aria-label="Close">×</button>
+                    </div>
+                    <div className="overflow-auto max-h-[55vh] p-4">
+                      <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm whitespace-pre-wrap">
+                        {buildNestedJSON(viewingTemplate.template.data)}
+                      </pre>
+                    </div>
+                    <div className="p-4 bg-gray-50 border-t flex gap-2">
+                      <button
+                        onClick={() => safeClipboardWrite(buildNestedJSON(viewingTemplate.template.data))}
+                        className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-900 font-semibold"
+                      >
+                        📋 Copy JSON
+                      </button>
+                      <button
+                        onClick={() => { loadTemplate(viewingTemplate.name); setViewingTemplate(null); }}
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+                      >
+                        Load This Template
+                      </button>
+                      <button
+                        onClick={() => setViewingTemplate(null)}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Import Modal on home screen */}
+              {showImport && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="home-import-title" onKeyDown={e => e.key === 'Escape' && (setShowImport(false), setImportText(''), setImportError(''))}>
+                  <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+                    <div className="p-4 bg-gray-100 border-b flex items-center justify-between">
+                      <h3 id="home-import-title" className="text-xl font-bold">📂 Import JSON Prompt</h3>
+                      <button onClick={() => { setShowImport(false); setImportText(''); setImportError(''); }} className="text-2xl hover:text-red-500" aria-label="Close">×</button>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <p className="text-sm text-gray-600">Paste a previously exported JSON prompt. Select the prompt type first, then import to populate the form.</p>
+                      <div className="flex gap-2">
+                        {['image','video','llm'].map(t => (
+                          <button key={t} onClick={() => setPromptType(t)}
+                            className={`flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${promptType === t ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}`}>
+                            {t === 'image' ? '🖼️ Image' : t === 'video' ? '🎬 Video' : '🤖 LLM'}
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        value={importText}
+                        onChange={e => { setImportText(e.target.value); setImportError(''); }}
+                        placeholder={'{\n  "role": {\n    "persona": "...",\n    "tone": "professional"\n  },\n  ...\n}'}
+                        rows={12}
+                        className="w-full p-3 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 resize-none"
+                      />
+                      {importError && <p className="text-red-500 text-sm">{importError}</p>}
+                    </div>
+                    <div className="p-4 bg-gray-50 border-t flex gap-2">
+                      <button onClick={importJSON} disabled={!importText.trim() || !promptType}
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50">
+                        Import & Open Builder
+                      </button>
+                      <button onClick={() => { setShowImport(false); setImportText(''); setImportError(''); }}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // === BUILDER SCREEN ===
+      const currentSectionKey = sections[currentSection];
+      const currentSectionInfo = sectionInfo[currentSectionKey];
+      const currentFields = Object.entries(schema).filter(([key, config]) => config.section === currentSectionKey);
+
+      return (
+        <div className="min-h-screen bg-gray-100">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4">
+            <div className="max-w-6xl mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => { if (!hasUnsavedChanges || confirm('You have unsaved changes. Leave anyway?')) { setPromptType(null); setHasUnsavedChanges(false); } }}
+                  className="p-2 hover:bg-white/20 rounded-lg"
+                >
+                  ← Back
+                </button>
+                <div>
+                  <h1 className="text-xl font-bold">
+                    {promptType === 'image' ? '🖼️ Image' : promptType === 'video' ? '🎬 Video' : '🤖 LLM'} Prompt Builder
+                  </h1>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowImport(true)}
+                  className="px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 text-sm"
+                >
+                  📂 Import JSON
+                </button>
+                <select
+                  key={presetKey}
+                  onChange={e => e.target.value && applyPreset(e.target.value)}
+                  className="bg-white/20 text-white border-0 rounded-lg p-2 text-sm"
+                  defaultValue=""
+                >
+                  <option value="">Load Preset...</option>
+                  {Object.keys(PRESETS[promptType] || {}).map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowOutput(true)}
+                  className="px-4 py-2 bg-white text-purple-600 rounded-lg font-semibold hover:bg-purple-100"
+                >
+                  Generate JSON →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-6xl mx-auto p-4 flex gap-4">
+            {/* Sidebar */}
+            <div className="w-64 flex-shrink-0">
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden sticky top-4">
+                <div className="p-3 bg-gray-50 border-b font-semibold text-gray-700">Sections</div>
+                {sections.map((key, idx) => (
+                  <button
+                    key={key}
+                    onClick={() => setCurrentSection(idx)}
+                    className={`w-full p-3 text-left flex items-center gap-3 border-b last:border-0 transition-colors ${
+                      idx === currentSection ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="text-xl">{sectionInfo[key].icon}</span>
+                    <div>
+                      <div className="font-medium">{sectionInfo[key].title}</div>
+                      <div className="text-xs text-gray-500">{sectionInfo[key].desc}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="flex-1">
+              <div className="bg-white rounded-xl shadow-lg p-6 fade-in" key={currentSectionKey}>
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="text-3xl">{currentSectionInfo.icon}</span>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-800">{currentSectionInfo.title}</h2>
+                    <p className="text-gray-500">{currentSectionInfo.desc}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {currentFields.map(([key, config]) => {
+                    if (config.type === 'checkbox') {
+                      return (
+                        <div key={key}>
+                          {renderField(key, config)}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={key}>
+                        <label htmlFor={`field-${key}`} className="block text-sm font-medium text-gray-700 mb-1">{config.label}</label>
+                        {renderField(key, config)}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Navigation */}
+                <div className="flex justify-between mt-8 pt-4 border-t">
+                  <button
+                    onClick={() => setCurrentSection(Math.max(0, currentSection - 1))}
+                    disabled={currentSection === 0}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                  >
+                    ← Previous
+                  </button>
+                  {currentSection < sections.length - 1 ? (
+                    <button
+                      onClick={() => setCurrentSection(currentSection + 1)}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Next →
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowOutput(true)}
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      Generate JSON ✓
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Output Modal */}
+          {showOutput && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="output-modal-title" onKeyDown={e => e.key === 'Escape' && setShowOutput(false)}>
+              <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+                <div className="p-4 bg-gray-100 border-b flex items-center justify-between">
+                  <h3 id="output-modal-title" className="text-xl font-bold">Generated Prompt</h3>
+                  <div className="flex items-center gap-3">
+                    {/* JSON / Text toggle */}
+                    <div className="flex bg-gray-200 rounded-lg p-1 text-sm">
+                      <button
+                        onClick={() => setOutputMode('json')}
+                        className={`px-3 py-1 rounded-md font-medium transition-colors ${outputMode === 'json' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                      >
+                        JSON
+                      </button>
+                      <button
+                        onClick={() => setOutputMode('text')}
+                        className={`px-3 py-1 rounded-md font-medium transition-colors ${outputMode === 'text' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                      >
+                        Plain Text
+                      </button>
+                    </div>
+                    <button onClick={() => setShowOutput(false)} className="text-2xl hover:text-red-500" aria-label="Close">×</button>
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-4 overflow-auto max-h-[60vh]">
+                  <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm overflow-auto whitespace-pre-wrap">
+                    {outputMode === 'json' ? generateJSON() : generatePlainText()}
+                  </pre>
+                </div>
+
+                <div className="p-4 bg-gray-50 border-t space-y-4">
+                  {/* Save Template */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={templateName}
+                      onChange={e => setTemplateName(e.target.value)}
+                      placeholder="Template name..."
+                      className="flex-1 p-2 border rounded-lg"
+                    />
+                    <button
+                      onClick={saveTemplate}
+                      disabled={!templateName.trim()}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      💾 Save Template
+                    </button>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={copyToClipboard}
+                      className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+                    >
+                      {copied ? '✓ Copied!' : `📋 Copy ${outputMode === 'json' ? 'JSON' : 'Text'}`}
+                    </button>
+                    <button
+                      onClick={exportToFile}
+                      className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
+                    >
+                      📥 Download {outputMode === 'json' ? 'JSON' : 'TXT'}
+                    </button>
+                  </div>
+
+                  <p className="text-center text-sm text-gray-600">
+                    Paste this {outputMode === 'json' ? 'JSON' : 'prompt'} into {promptType === 'image' ? 'Gemini, ChatGPT, or your image generator' : promptType === 'video' ? 'Veo, Sora, Runway, or your video generator' : 'ChatGPT, Claude, or your LLM'}.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Import JSON Modal */}
+          {showImport && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="builder-import-title" onKeyDown={e => e.key === 'Escape' && (setShowImport(false), setImportText(''), setImportError(''))}>
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+                <div className="p-4 bg-gray-100 border-b flex items-center justify-between">
+                  <h3 id="builder-import-title" className="text-xl font-bold">📂 Import JSON Prompt</h3>
+                  <button onClick={() => { setShowImport(false); setImportText(''); setImportError(''); }} className="text-2xl hover:text-red-500" aria-label="Close">×</button>
+                </div>
+                <div className="p-4 space-y-3">
+                  <p className="text-sm text-gray-600">Paste a previously exported JSON prompt below. It will populate the current form fields.</p>
+                  <textarea
+                    value={importText}
+                    onChange={e => { setImportText(e.target.value); setImportError(''); }}
+                    placeholder={'{\n  "role": {\n    "persona": "...",\n    "tone": "professional"\n  },\n  ...\n}'}
+                    rows={12}
+                    className="w-full p-3 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                  {importError && <p className="text-red-500 text-sm">{importError}</p>}
+                </div>
+                <div className="p-4 bg-gray-50 border-t flex gap-2">
+                  <button
+                    onClick={importJSON}
+                    disabled={!importText.trim()}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50"
+                  >
+                    Import & Populate Form
+                  </button>
+                  <button
+                    onClick={() => { setShowImport(false); setImportText(''); setImportError(''); }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<UniversalPromptStudio />);
+  </script>
+</body>
+</html>
