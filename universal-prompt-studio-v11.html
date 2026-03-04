@@ -10,10 +10,19 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Note: SRI integrity hashes cannot be used with unpkg/CDN URLs that may change.
        Pin to exact versions (e.g. react@18.2.0) and add integrity= attributes for production use. -->
+  <script>tailwind.config = { darkMode: 'class' }</script>
   <style>
     body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+    html.dark body { background: #111827; }
     .fade-in { animation: fadeIn 0.3s ease-in; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
+    .toast-enter { animation: toastIn 0.3s ease-out; }
+    .toast-exit { animation: toastOut 0.3s ease-in forwards; }
+    /* Dark mode input overrides */
+    .dark input, .dark textarea, .dark select { border-color: #4b5563; background-color: #374151; color: #f3f4f6; }
+    .dark input::placeholder, .dark textarea::placeholder { color: #9ca3af; }
   </style>
 </head>
 <body>
@@ -443,6 +452,67 @@
       }
     };
 
+    // === TOAST NOTIFICATION SYSTEM ===
+    let _toastId = 0;
+    const toastBus = {
+      listeners: [],
+      subscribe(fn) { this.listeners.push(fn); return () => { this.listeners = this.listeners.filter(l => l !== fn); }; },
+      emit(msg, type = 'success') { this.listeners.forEach(fn => fn({ id: ++_toastId, msg, type })); }
+    };
+    const showToast = (msg, type = 'success') => toastBus.emit(msg, type);
+
+    function ToastContainer() {
+      const [toasts, setToasts] = React.useState([]);
+      useEffect(() => {
+        return toastBus.subscribe(toast => {
+          setToasts(prev => [...prev, toast]);
+          setTimeout(() => setToasts(prev => prev.map(t => t.id === toast.id ? { ...t, exiting: true } : t)), 2700);
+          setTimeout(() => setToasts(prev => prev.filter(t => t.id !== toast.id)), 3000);
+        });
+      }, []);
+      const colors = { success: 'bg-green-500', error: 'bg-red-500', info: 'bg-blue-500', warning: 'bg-yellow-500 text-gray-900' };
+      if (!toasts.length) return null;
+      return (
+        <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
+          {toasts.map(t => (
+            <div key={t.id} className={`${colors[t.type] || colors.success} ${t.exiting ? 'toast-exit' : 'toast-enter'} text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium max-w-sm`}>
+              {t.msg}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // === DARK MODE ===
+    const useDarkMode = () => {
+      const [mode, setModeState] = useState(() => { try { return localStorage.getItem('promptStudioTheme') || 'system'; } catch(e) { return 'system'; } });
+      const [isDark, setIsDark] = useState(false);
+      const applyTheme = useCallback((m) => {
+        const dark = m === 'dark' || (m === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        setIsDark(dark);
+        document.documentElement.classList.toggle('dark', dark);
+      }, []);
+      useEffect(() => { applyTheme(mode); }, [mode, applyTheme]);
+      useEffect(() => {
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+        const handler = () => { if (mode === 'system') applyTheme('system'); };
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+      }, [mode, applyTheme]);
+      const setMode = useCallback((m) => { setModeState(m); try { localStorage.setItem('promptStudioTheme', m); } catch(e) {} }, []);
+      return [isDark, mode, setMode];
+    };
+
+    function ThemeToggle({ isDark, mode, setMode }) {
+      const next = mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light';
+      const label = mode === 'light' ? '☀️' : mode === 'dark' ? '🌙' : '💻';
+      return (
+        <button onClick={() => setMode(next)} className="p-2 rounded-lg hover:bg-white/20 text-sm" title={`Theme: ${mode} (click for ${next})`}>
+          {label}
+        </button>
+      );
+    }
+
     // Industry groupings (static, extracted to module scope for performance)
     const INDUSTRY_GROUPS = {
       '💻 Tech & Development': ['Frontend Web Dev','Backend Dev','Mobile App Dev','AI / ML Engineering','DevOps & Cloud','Data Engineering','Cybersecurity','UI/UX Design','Game Development','Desktop / Systems','Windows Automation','Python Development'],
@@ -458,7 +528,7 @@
         return true;
       } catch (e) {
         console.error('localStorage write failed:', e);
-        alert('Storage is full. Please delete some saved templates or chains to free up space.');
+        showToast('Storage is full. Please delete some saved templates or chains to free up space.', 'error');
         return false;
       }
     };
@@ -490,7 +560,7 @@
       'n8n', 'Zapier', 'MindStudio', 'HuggingFace', 'Slack',
     ];
 
-    function ChainBuilder({ onBack }) {
+    function ChainBuilder({ onBack, isDark, themeMode, setThemeMode }) {
       const emptyStep = (id) => ({
         id, name: `Step ${id}`, type: 'standard',
         role: '', task: '', inputSource: 'manual', inputData: '',
@@ -501,7 +571,6 @@
       const [steps, setSteps] = useState([emptyStep(1), emptyStep(2)]);
       const [showExport, setShowExport] = useState(false);
       const [chainName, setChainName] = useState('');
-      const [copied, setCopied] = useState(false);
       const [savedChains, setSavedChains] = useState(() => {
         try { return JSON.parse(localStorage.getItem('promptStudioChains') || '{}'); } catch { return {}; }
       });
@@ -572,7 +641,7 @@
 
       const copyChain = async () => {
         const ok = await safeClipboardWrite(buildChainJSON());
-        if (ok) { setCopied(true); setTimeout(() => setCopied(false), 2000); }
+        if (ok) showToast('Chain JSON copied to clipboard!');
       };
 
       const downloadChain = () => {
@@ -583,12 +652,12 @@
         URL.revokeObjectURL(url);
       };
 
-      const stepColor = (type) => type === 'translate' ? 'border-orange-400 bg-orange-50' : 'border-blue-300 bg-white';
+      const stepColor = (type) => type === 'translate' ? 'border-orange-400 bg-orange-50 dark:bg-orange-950' : 'border-blue-300 bg-white dark:bg-gray-800';
       const stepBadge = (type) => type === 'translate'
-        ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700';
+        ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
 
       return (
-        <div className="min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
           {/* Header */}
           <div className="bg-gradient-to-r from-orange-500 to-pink-600 text-white p-4">
             <div className="max-w-5xl mx-auto flex items-center justify-between">
@@ -599,17 +668,20 @@
                   <p className="text-sm opacity-80">Build multi-step prompt pipelines</p>
                 </div>
               </div>
-              <button onClick={() => setShowExport(true)}
-                className="px-4 py-2 bg-white text-orange-600 rounded-lg font-semibold hover:bg-orange-50">
-                Export Chain →
-              </button>
+              <div className="flex items-center gap-2">
+                <ThemeToggle isDark={isDark} mode={themeMode} setMode={setThemeMode} />
+                <button onClick={() => setShowExport(true)}
+                  className="px-4 py-2 bg-white text-orange-600 rounded-lg font-semibold hover:bg-orange-50">
+                  Export Chain →
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="max-w-5xl mx-auto p-4 space-y-4">
             {/* How it works banner */}
-            <div className="bg-white rounded-xl p-4 border-l-4 border-orange-400 shadow-sm">
-              <p className="text-sm text-gray-600">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border-l-4 border-orange-400 shadow-sm">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 <strong>How it works:</strong> Build sequential steps where each step's output feeds the next.
                 Use <span className="text-blue-600 font-medium">Standard</span> steps for planning and building,
                 then add a <span className="text-orange-600 font-medium">Translate</span> step to push the final
@@ -621,23 +693,23 @@
             {steps.map((step, idx) => (
               <div key={step.id} className={`rounded-xl border-2 shadow-sm overflow-hidden ${stepColor(step.type)}`}>
                 {/* Step Header */}
-                <div className="flex items-center gap-3 p-4 border-b border-gray-200 bg-white/70">
-                  <span className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600">{idx + 1}</span>
+                <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-600 bg-white/70 dark:bg-gray-800/70">
+                  <span className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300">{idx + 1}</span>
                   <input
                     type="text" value={step.name}
                     onChange={e => updateStep(step.id, 'name', e.target.value)}
-                    className="flex-1 font-semibold text-gray-800 bg-transparent border-b border-dashed border-gray-300 focus:outline-none focus:border-blue-500 text-lg"
+                    className="flex-1 font-semibold text-gray-800 dark:text-gray-100 bg-transparent border-b border-dashed border-gray-300 dark:border-gray-500 focus:outline-none focus:border-blue-500 text-lg"
                   />
                   <span className={`px-2 py-1 rounded text-xs font-semibold ${stepBadge(step.type)}`}>
                     {step.type === 'translate' ? '🔀 Translate' : '⚙️ Standard'}
                   </span>
                   <div className="flex gap-1">
                     <button onClick={() => moveStep(step.id, -1)} disabled={idx === 0} aria-label="Move step up"
-                      className="p-1 hover:bg-gray-200 rounded disabled:opacity-30 text-gray-500">▲</button>
+                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded disabled:opacity-30 text-gray-500 dark:text-gray-400">▲</button>
                     <button onClick={() => moveStep(step.id, 1)} disabled={idx === steps.length - 1} aria-label="Move step down"
-                      className="p-1 hover:bg-gray-200 rounded disabled:opacity-30 text-gray-500">▼</button>
+                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded disabled:opacity-30 text-gray-500 dark:text-gray-400">▼</button>
                     <button onClick={() => removeStep(step.id)} disabled={steps.length <= 1} aria-label="Remove step"
-                      className="p-1 hover:bg-red-100 rounded disabled:opacity-30 text-red-400 ml-1">✕</button>
+                      className="p-1 hover:bg-red-100 dark:hover:bg-red-900 rounded disabled:opacity-30 text-red-400 ml-1">✕</button>
                   </div>
                 </div>
 
@@ -645,7 +717,7 @@
                   {/* Input Source */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Input Source</label>
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Input Source</label>
                       <select value={step.inputSource} onChange={e => updateStep(step.id, 'inputSource', e.target.value)}
                         className="w-full p-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500">
                         <option value="manual">✍️ Manual / Paste input</option>
@@ -655,7 +727,7 @@
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Output Label</label>
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Output Label</label>
                       <input type="text" value={step.outputLabel}
                         onChange={e => updateStep(step.id, 'outputLabel', e.target.value)}
                         className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
@@ -665,7 +737,7 @@
 
                   {step.inputSource === 'manual' && (
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Manual Input Data</label>
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Manual Input Data</label>
                       <textarea value={step.inputData} onChange={e => {
                           updateStep(step.id, 'inputData', e.target.value);
                           e.target.style.height = 'auto';
@@ -680,13 +752,13 @@
                   {/* Role & Task */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Role / Persona</label>
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Role / Persona</label>
                       <textarea value={step.role} onChange={e => updateStep(step.id, 'role', e.target.value)}
                         rows={3} placeholder="e.g. You are a senior UI designer specializing in design systems..."
                         className="w-full p-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Task Instruction</label>
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Task Instruction</label>
                       <textarea value={step.task} onChange={e => updateStep(step.id, 'task', e.target.value)}
                         rows={3} placeholder="e.g. Analyze the brief and produce a complete design spec including colors, typography, and spacing rules..."
                         className="w-full p-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500" />
@@ -696,12 +768,12 @@
                   {/* Translate targets */}
                   {step.type === 'translate' && (
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
                         Target Platforms <span className="text-orange-500">({step.targets.length} selected)</span>
                       </label>
                       <div className="grid grid-cols-4 gap-2 mb-3">
                         {CHAIN_TARGETS.map(t => (
-                          <label key={t} className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer text-xs transition-colors ${step.targets.includes(t) ? 'border-orange-400 bg-orange-50 text-orange-700 font-semibold' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
+                          <label key={t} className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer text-xs transition-colors ${step.targets.includes(t) ? 'border-orange-400 bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300 font-semibold' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
                             <input type="checkbox" className="rounded" checked={step.targets.includes(t)}
                               onChange={() => toggleTarget(step.id, t)} />
                             {t}
@@ -721,28 +793,28 @@
             {/* Add Step Buttons */}
             <div className="flex gap-3">
               <button onClick={() => addStep('standard')}
-                className="flex-1 py-3 border-2 border-dashed border-blue-300 text-blue-600 rounded-xl hover:bg-blue-50 font-medium transition-colors">
+                className="flex-1 py-3 border-2 border-dashed border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950 font-medium transition-colors">
                 + Add Standard Step
               </button>
               <button onClick={() => addStep('translate')}
-                className="flex-1 py-3 border-2 border-dashed border-orange-300 text-orange-600 rounded-xl hover:bg-orange-50 font-medium transition-colors">
+                className="flex-1 py-3 border-2 border-dashed border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 rounded-xl hover:bg-orange-50 dark:hover:bg-orange-950 font-medium transition-colors">
                 + Add Translate Step
               </button>
             </div>
 
             {/* Saved Chains */}
             {Object.keys(savedChains).length > 0 && (
-              <div className="bg-white rounded-xl p-4 shadow-sm">
-                <h3 className="font-semibold text-gray-700 mb-3">📁 Saved Chains</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+                <h3 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">📁 Saved Chains</h3>
                 <div className="space-y-2">
                   {Object.entries(savedChains).map(([name, chain]) => (
-                    <div key={name} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <div key={name} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                       <div>
-                        <span className="font-medium text-gray-800">{name}</span>
-                        <span className="text-gray-600 text-xs ml-2">{chain.steps?.length} steps · {new Date(chain.savedAt).toLocaleDateString()}</span>
+                        <span className="font-medium text-gray-800 dark:text-gray-100">{name}</span>
+                        <span className="text-gray-600 dark:text-gray-400 text-xs ml-2">{chain.steps?.length} steps · {new Date(chain.savedAt).toLocaleDateString()}</span>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => { const valid = validateChainSteps(chain.steps); if (valid) setSteps(valid); else alert('This saved chain has invalid data and cannot be loaded.'); }}
+                        <button onClick={() => { const valid = validateChainSteps(chain.steps); if (valid) setSteps(valid); else showToast('This saved chain has invalid data and cannot be loaded.', 'error'); }}
                           className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">Load</button>
                         <button onClick={() => { if (!confirm(`Delete chain "${name}"?`)) return; const c = {...savedChains}; delete c[name]; setSavedChains(c); safeLocalStorageSet('promptStudioChains', c); }}
                           className="px-3 py-1 bg-red-400/60 text-white rounded text-sm hover:bg-red-500">Delete</button>
@@ -757,17 +829,17 @@
           {/* Export Modal */}
           {showExport && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="export-chain-title" onKeyDown={e => e.key === 'Escape' && setShowExport(false)}>
-              <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
-                <div className="p-4 bg-gray-100 border-b flex items-center justify-between">
-                  <h3 id="export-chain-title" className="text-xl font-bold">🔗 Exported Chain JSON</h3>
-                  <button onClick={() => setShowExport(false)} className="text-2xl hover:text-red-500" aria-label="Close">×</button>
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+                <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex items-center justify-between">
+                  <h3 id="export-chain-title" className="text-xl font-bold dark:text-white">🔗 Exported Chain JSON</h3>
+                  <button onClick={() => setShowExport(false)} className="text-2xl hover:text-red-500 dark:text-gray-300" aria-label="Close">×</button>
                 </div>
                 <div className="p-4 overflow-auto max-h-[55vh]">
                   <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm whitespace-pre-wrap">
                     {buildChainJSON()}
                   </pre>
                 </div>
-                <div className="p-4 bg-gray-50 border-t space-y-3">
+                <div className="p-4 bg-gray-50 dark:bg-gray-700 border-t dark:border-gray-600 space-y-3">
                   <div className="flex gap-2">
                     <input type="text" value={chainName} onChange={e => setChainName(e.target.value)}
                       placeholder="Chain name to save..."
@@ -780,14 +852,14 @@
                   <div className="flex gap-2">
                     <button onClick={copyChain}
                       className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
-                      {copied ? '✓ Copied!' : '📋 Copy JSON'}
+                      📋 Copy JSON
                     </button>
                     <button onClick={downloadChain}
                       className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">
                       📥 Download JSON
                     </button>
                   </div>
-                  <p className="text-center text-xs text-gray-600">Pass this chain JSON to Claude Code or your agent runner to execute each step in sequence.</p>
+                  <p className="text-center text-xs text-gray-600 dark:text-gray-400">Pass this chain JSON to Claude Code or your agent runner to execute each step in sequence.</p>
                 </div>
               </div>
             </div>
@@ -799,6 +871,7 @@
     // === COMPONENTS ===
 
     function UniversalPromptStudio() {
+      const [isDark, themeMode, setThemeMode] = useDarkMode();
       const [promptType, setPromptType] = useState(null);
       const [showChain, setShowChain] = useState(false);
       const [currentSection, setCurrentSection] = useState(0);
@@ -809,16 +882,41 @@
         } catch { return {}; }
       });
       const [templateName, setTemplateName] = useState('');
-      const [copied, setCopied] = useState(false);
       const [showOutput, setShowOutput] = useState(false);
       const [viewingTemplate, setViewingTemplate] = useState(null);
       const [outputMode, setOutputMode] = useState('json'); // 'json' | 'text'
       const [showImport, setShowImport] = useState(false);
       const [importText, setImportText] = useState('');
       const [importError, setImportError] = useState('');
+      const [autoSaveData] = useState(() => { try { const s = JSON.parse(localStorage.getItem('promptStudioAutosave')); return s && s.type && s.data && typeof s.data === 'object' && Date.now() - s.timestamp < 86400000 ? s : null; } catch(e) { return null; } });
       const [presetKey, setPresetKey] = useState(0); // for resetting preset dropdown
       const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+      const [autoSaveStatus, setAutoSaveStatus] = useState('');
       const isLoadingTemplateRef = useRef(false);
+
+      // Auto-save with 2s debounce
+      useEffect(() => {
+        if (!promptType || !hasUnsavedChanges) return;
+        setAutoSaveStatus('');
+        const timer = setTimeout(() => {
+          try {
+            localStorage.setItem('promptStudioAutosave', JSON.stringify({ type: promptType, data: formData, timestamp: Date.now() }));
+            setAutoSaveStatus('Auto-saved');
+            setTimeout(() => setAutoSaveStatus(''), 3000);
+          } catch (e) { /* ignore quota errors for autosave */ }
+        }, 2000);
+        return () => clearTimeout(timer);
+      }, [formData, promptType, hasUnsavedChanges]);
+
+      // Recovery check on mount
+      useEffect(() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem('promptStudioAutosave'));
+          if (saved && saved.type && saved.data && Date.now() - saved.timestamp < 86400000) {
+            showToast(`Session recovery available (${saved.type} prompt)`, 'info');
+          }
+        } catch (e) { /* ignore */ }
+      }, []);
 
       const schema = promptType === 'image' ? IMAGE_SCHEMA : promptType === 'video' ? VIDEO_SCHEMA : LLM_SCHEMA;
       const sectionInfo = promptType ? SECTION_INFO[promptType] : {};
@@ -882,6 +980,8 @@
           setSavedTemplates(newTemplates);
           setTemplateName('');
           setHasUnsavedChanges(false);
+          try { localStorage.removeItem('promptStudioAutosave'); } catch(e) {}
+          showToast('Template saved!');
         }
       }, [templateName, savedTemplates, promptType, formData]);
 
@@ -1046,7 +1146,7 @@
       const copyToClipboard = async () => {
         const content = outputMode === 'json' ? generateJSON() : generatePlainText();
         const ok = await safeClipboardWrite(content);
-        if (ok) { setCopied(true); setTimeout(() => setCopied(false), 2000); }
+        if (ok) showToast(`${outputMode === 'json' ? 'JSON' : 'Text'} copied to clipboard!`);
       };
 
       const exportToFile = () => {
@@ -1075,10 +1175,10 @@
             const selectedAesthetics = Array.isArray(value) ? value : [];
             return (
               <div>
-                <p className="text-xs text-gray-600 mb-2 italic">Options shown for: <span className="font-semibold text-blue-500">{medium.replace(/_/g,' ')}</span> — changes with medium selection above</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 italic">Options shown for: <span className="font-semibold text-blue-500">{medium.replace(/_/g,' ')}</span> — changes with medium selection above</p>
                 <div className="grid grid-cols-3 gap-2">
                   {aestheticOptions.map(opt => (
-                    <label key={opt} className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer text-sm transition-colors ${selectedAesthetics.includes(opt) ? 'border-purple-500 bg-purple-50 text-purple-700 font-medium' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    <label key={opt} className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer text-sm transition-colors ${selectedAesthetics.includes(opt) ? 'border-purple-500 bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-medium' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200'}`}>
                       <input type="checkbox" className="rounded" checked={selectedAesthetics.includes(opt)}
                         onChange={e => {
                           const next = e.target.checked ? [...selectedAesthetics, opt] : selectedAesthetics.filter(v => v !== opt);
@@ -1103,13 +1203,13 @@
             return (
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-500 mb-3">1. Select industries to load their top 10 skills:</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">1. Select industries to load their top 10 skills:</p>
                   {Object.entries(INDUSTRY_GROUPS).map(([groupName, industries]) => (
                     <div key={groupName} className="mb-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{groupName}</p>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">{groupName}</p>
                       <div className="grid grid-cols-2 gap-1.5">
                         {industries.map(ind => (
-                          <label key={ind} className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer text-sm transition-colors ${selectedIndustries.includes(ind) ? 'border-blue-500 bg-blue-50 text-blue-700 font-medium' : 'border-gray-200 hover:bg-gray-50'}`}>
+                          <label key={ind} className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer text-sm transition-colors ${selectedIndustries.includes(ind) ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-medium' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200'}`}>
                             <input type="checkbox" className="rounded" checked={selectedIndustries.includes(ind)}
                               onChange={e => {
                                 const next = e.target.checked ? [...selectedIndustries, ind] : selectedIndustries.filter(i => i !== ind);
@@ -1128,7 +1228,7 @@
                 {combinedSkills.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm text-gray-500">2. Pick the skills to apply <span className="font-semibold text-blue-600">({selectedSkills.length} selected)</span>:</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">2. Pick the skills to apply <span className="font-semibold text-blue-600">({selectedSkills.length} selected)</span>:</p>
                       <div className="flex gap-3">
                         <button onClick={() => updateField(key, combinedSkills)} className="text-xs text-blue-600 hover:underline">Select All</button>
                         <button onClick={() => updateField(key, [])} className="text-xs text-red-400 hover:underline">Clear</button>
@@ -1136,7 +1236,7 @@
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
                       {combinedSkills.map(skill => (
-                        <label key={skill} className={`flex items-center gap-2 p-2 border rounded-lg cursor-pointer text-sm transition-colors ${selectedSkills.includes(skill) ? 'border-green-500 bg-green-50 text-green-700 font-medium' : 'border-gray-200 hover:bg-gray-50'}`}>
+                        <label key={skill} className={`flex items-center gap-2 p-2 border rounded-lg cursor-pointer text-sm transition-colors ${selectedSkills.includes(skill) ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 font-medium' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200'}`}>
                           <input type="checkbox" className="rounded" checked={selectedSkills.includes(skill)}
                             onChange={e => {
                               const next = e.target.checked ? [...selectedSkills, skill] : selectedSkills.filter(s => s !== skill);
@@ -1150,7 +1250,7 @@
                   </div>
                 )}
                 {combinedSkills.length === 0 && (
-                  <p className="text-sm text-gray-600 italic">← Select at least one industry above to see its skills</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 italic">← Select at least one industry above to see its skills</p>
                 )}
               </div>
             );
@@ -1199,7 +1299,7 @@
                   updateField(key, e.target.value);
                   if (key === 'style.medium') updateField('style.medium_aesthetics', []);
                 }}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white"
               >
                 {config.options.map(opt => (
                   <option key={opt} value={opt}>{opt.replace(/_/g, ' ')}</option>
@@ -1211,7 +1311,7 @@
             return (
               <div className="grid grid-cols-3 gap-2">
                 {config.options.map(opt => (
-                  <label key={opt} className="flex items-center gap-2 p-2 border rounded hover:bg-gray-50 cursor-pointer text-sm">
+                  <label key={opt} className="flex items-center gap-2 p-2 border dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer text-sm dark:text-gray-200">
                     <input
                       type="checkbox"
                       checked={selected.includes(opt)}
@@ -1246,19 +1346,30 @@
       };
 
       // === TYPE SELECTION SCREEN ===
-      if (showChain) return <ChainBuilder onBack={() => setShowChain(false)} />;
+      if (showChain) return <ChainBuilder onBack={() => setShowChain(false)} isDark={isDark} themeMode={themeMode} setThemeMode={setThemeMode} />;
 
       if (!promptType) {
         return (
-          <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+          <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-8">
             <div className="max-w-4xl mx-auto">
               <div className="text-center mb-12">
                 <h1 className="text-4xl font-bold text-white mb-4">Universal Prompt Studio</h1>
                 <p className="text-purple-200 text-lg mb-6">Build structured JSON prompts for AI image, video, and text generation</p>
-                <button onClick={() => setShowImport(true)}
-                  className="px-5 py-2 bg-white/15 hover:bg-white/25 text-white rounded-lg border border-white/30 text-sm font-medium transition-colors">
-                  📂 Import Existing JSON Prompt
-                </button>
+                <div className="mb-4">
+                  <ThemeToggle isDark={isDark} mode={themeMode} setMode={setThemeMode} />
+                </div>
+                <div className="flex items-center justify-center gap-3">
+                  <button onClick={() => setShowImport(true)}
+                    className="px-5 py-2 bg-white/15 hover:bg-white/25 text-white rounded-lg border border-white/30 text-sm font-medium transition-colors">
+                    📂 Import Existing JSON Prompt
+                  </button>
+                  {autoSaveData && (
+                    <button onClick={() => { isLoadingTemplateRef.current = true; setFormData(autoSaveData.data); setPromptType(autoSaveData.type); localStorage.removeItem('promptStudioAutosave'); showToast('Session restored!'); }}
+                      className="px-5 py-2 bg-green-500/80 hover:bg-green-500 text-white rounded-lg border border-green-400/50 text-sm font-medium transition-colors">
+                      🔄 Restore Last Session ({autoSaveData.type})
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -1328,22 +1439,22 @@
               {/* View Template Modal */}
               {viewingTemplate && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="view-template-title" onKeyDown={e => e.key === 'Escape' && setViewingTemplate(null)}>
-                  <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
-                    <div className="p-4 bg-gray-100 border-b flex items-center justify-between">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+                    <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex items-center justify-between">
                       <div>
-                        <h3 id="view-template-title" className="text-lg font-bold">{viewingTemplate.name}</h3>
-                        <p className="text-sm text-gray-600">Type: {viewingTemplate.template.type} · Saved: {new Date(viewingTemplate.template.savedAt).toLocaleDateString()}</p>
+                        <h3 id="view-template-title" className="text-lg font-bold dark:text-white">{viewingTemplate.name}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Type: {viewingTemplate.template.type} · Saved: {new Date(viewingTemplate.template.savedAt).toLocaleDateString()}</p>
                       </div>
-                      <button onClick={() => setViewingTemplate(null)} className="text-2xl hover:text-red-500 ml-4" aria-label="Close">×</button>
+                      <button onClick={() => setViewingTemplate(null)} className="text-2xl hover:text-red-500 dark:text-gray-300 ml-4" aria-label="Close">×</button>
                     </div>
                     <div className="overflow-auto max-h-[55vh] p-4">
                       <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm whitespace-pre-wrap">
                         {buildNestedJSON(viewingTemplate.template.data)}
                       </pre>
                     </div>
-                    <div className="p-4 bg-gray-50 border-t flex gap-2">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-700 border-t dark:border-gray-600 flex gap-2">
                       <button
-                        onClick={() => safeClipboardWrite(buildNestedJSON(viewingTemplate.template.data))}
+                        onClick={async () => { const ok = await safeClipboardWrite(buildNestedJSON(viewingTemplate.template.data)); if (ok) showToast('JSON copied to clipboard!'); }}
                         className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-900 font-semibold"
                       >
                         📋 Copy JSON
@@ -1367,17 +1478,17 @@
               {/* Import Modal on home screen */}
               {showImport && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="home-import-title" onKeyDown={e => e.key === 'Escape' && (setShowImport(false), setImportText(''), setImportError(''))}>
-                  <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
-                    <div className="p-4 bg-gray-100 border-b flex items-center justify-between">
-                      <h3 id="home-import-title" className="text-xl font-bold">📂 Import JSON Prompt</h3>
-                      <button onClick={() => { setShowImport(false); setImportText(''); setImportError(''); }} className="text-2xl hover:text-red-500" aria-label="Close">×</button>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+                    <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex items-center justify-between">
+                      <h3 id="home-import-title" className="text-xl font-bold dark:text-white">📂 Import JSON Prompt</h3>
+                      <button onClick={() => { setShowImport(false); setImportText(''); setImportError(''); }} className="text-2xl hover:text-red-500 dark:text-gray-300" aria-label="Close">×</button>
                     </div>
                     <div className="p-4 space-y-3">
-                      <p className="text-sm text-gray-600">Paste a previously exported JSON prompt. Select the prompt type first, then import to populate the form.</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Paste a previously exported JSON prompt. Select the prompt type first, then import to populate the form.</p>
                       <div className="flex gap-2">
                         {['image','video','llm'].map(t => (
                           <button key={t} onClick={() => setPromptType(t)}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${promptType === t ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}`}>
+                            className={`flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${promptType === t ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200'}`}>
                             {t === 'image' ? '🖼️ Image' : t === 'video' ? '🎬 Video' : '🤖 LLM'}
                           </button>
                         ))}
@@ -1391,7 +1502,7 @@
                       />
                       {importError && <p className="text-red-500 text-sm">{importError}</p>}
                     </div>
-                    <div className="p-4 bg-gray-50 border-t flex gap-2">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-700 border-t dark:border-gray-600 flex gap-2">
                       <button onClick={importJSON} disabled={!importText.trim() || !promptType}
                         className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50">
                         Import & Open Builder
@@ -1415,7 +1526,7 @@
       const currentFields = Object.entries(schema).filter(([key, config]) => config.section === currentSectionKey);
 
       return (
-        <div className="min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
           {/* Header */}
           <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4">
             <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -1433,6 +1544,8 @@
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {autoSaveStatus && <span className="text-xs text-white/60">{autoSaveStatus}</span>}
+                <ThemeToggle isDark={isDark} mode={themeMode} setMode={setThemeMode} />
                 <button
                   onClick={() => setShowImport(true)}
                   className="px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 text-sm"
@@ -1463,20 +1576,20 @@
           <div className="max-w-6xl mx-auto p-4 flex gap-4">
             {/* Sidebar */}
             <div className="w-64 flex-shrink-0">
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden sticky top-4">
-                <div className="p-3 bg-gray-50 border-b font-semibold text-gray-700">Sections</div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden sticky top-4">
+                <div className="p-3 bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600 font-semibold text-gray-700 dark:text-gray-200">Sections</div>
                 {sections.map((key, idx) => (
                   <button
                     key={key}
                     onClick={() => setCurrentSection(idx)}
-                    className={`w-full p-3 text-left flex items-center gap-3 border-b last:border-0 transition-colors ${
-                      idx === currentSection ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+                    className={`w-full p-3 text-left flex items-center gap-3 border-b dark:border-gray-600 last:border-0 transition-colors ${
+                      idx === currentSection ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200'
                     }`}
                   >
                     <span className="text-xl">{sectionInfo[key].icon}</span>
                     <div>
                       <div className="font-medium">{sectionInfo[key].title}</div>
-                      <div className="text-xs text-gray-500">{sectionInfo[key].desc}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{sectionInfo[key].desc}</div>
                     </div>
                   </button>
                 ))}
@@ -1485,12 +1598,12 @@
 
             {/* Main Content */}
             <div className="flex-1">
-              <div className="bg-white rounded-xl shadow-lg p-6 fade-in" key={currentSectionKey}>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 fade-in" key={currentSectionKey}>
                 <div className="flex items-center gap-3 mb-6">
                   <span className="text-3xl">{currentSectionInfo.icon}</span>
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-800">{currentSectionInfo.title}</h2>
-                    <p className="text-gray-500">{currentSectionInfo.desc}</p>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{currentSectionInfo.title}</h2>
+                    <p className="text-gray-500 dark:text-gray-400">{currentSectionInfo.desc}</p>
                   </div>
                 </div>
 
@@ -1505,7 +1618,7 @@
                     }
                     return (
                       <div key={key}>
-                        <label htmlFor={`field-${key}`} className="block text-sm font-medium text-gray-700 mb-1">{config.label}</label>
+                        <label htmlFor={`field-${key}`} className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">{config.label}</label>
                         {renderField(key, config)}
                       </div>
                     );
@@ -1513,11 +1626,11 @@
                 </div>
 
                 {/* Navigation */}
-                <div className="flex justify-between mt-8 pt-4 border-t">
+                <div className="flex justify-between mt-8 pt-4 border-t dark:border-gray-600">
                   <button
                     onClick={() => setCurrentSection(Math.max(0, currentSection - 1))}
                     disabled={currentSection === 0}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-50"
                   >
                     ← Previous
                   </button>
@@ -1544,26 +1657,26 @@
           {/* Output Modal */}
           {showOutput && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="output-modal-title" onKeyDown={e => e.key === 'Escape' && setShowOutput(false)}>
-              <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
-                <div className="p-4 bg-gray-100 border-b flex items-center justify-between">
-                  <h3 id="output-modal-title" className="text-xl font-bold">Generated Prompt</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+                <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex items-center justify-between">
+                  <h3 id="output-modal-title" className="text-xl font-bold dark:text-white">Generated Prompt</h3>
                   <div className="flex items-center gap-3">
                     {/* JSON / Text toggle */}
-                    <div className="flex bg-gray-200 rounded-lg p-1 text-sm">
+                    <div className="flex bg-gray-200 dark:bg-gray-600 rounded-lg p-1 text-sm">
                       <button
                         onClick={() => setOutputMode('json')}
-                        className={`px-3 py-1 rounded-md font-medium transition-colors ${outputMode === 'json' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`px-3 py-1 rounded-md font-medium transition-colors ${outputMode === 'json' ? 'bg-white dark:bg-gray-800 shadow text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-300 hover:text-gray-700'}`}
                       >
                         JSON
                       </button>
                       <button
                         onClick={() => setOutputMode('text')}
-                        className={`px-3 py-1 rounded-md font-medium transition-colors ${outputMode === 'text' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`px-3 py-1 rounded-md font-medium transition-colors ${outputMode === 'text' ? 'bg-white dark:bg-gray-800 shadow text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-300 hover:text-gray-700'}`}
                       >
                         Plain Text
                       </button>
                     </div>
-                    <button onClick={() => setShowOutput(false)} className="text-2xl hover:text-red-500" aria-label="Close">×</button>
+                    <button onClick={() => setShowOutput(false)} className="text-2xl hover:text-red-500 dark:text-gray-300" aria-label="Close">×</button>
                   </div>
                 </div>
 
@@ -1573,7 +1686,7 @@
                   </pre>
                 </div>
 
-                <div className="p-4 bg-gray-50 border-t space-y-4">
+                <div className="p-4 bg-gray-50 dark:bg-gray-700 border-t dark:border-gray-600 space-y-4">
                   {/* Save Template */}
                   <div className="flex gap-2">
                     <input
@@ -1598,7 +1711,7 @@
                       onClick={copyToClipboard}
                       className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
                     >
-                      {copied ? '✓ Copied!' : `📋 Copy ${outputMode === 'json' ? 'JSON' : 'Text'}`}
+                      {`📋 Copy ${outputMode === 'json' ? 'JSON' : 'Text'}`}
                     </button>
                     <button
                       onClick={exportToFile}
@@ -1608,7 +1721,7 @@
                     </button>
                   </div>
 
-                  <p className="text-center text-sm text-gray-600">
+                  <p className="text-center text-sm text-gray-600 dark:text-gray-400">
                     Paste this {outputMode === 'json' ? 'JSON' : 'prompt'} into {promptType === 'image' ? 'Gemini, ChatGPT, or your image generator' : promptType === 'video' ? 'Veo, Sora, Runway, or your video generator' : 'ChatGPT, Claude, or your LLM'}.
                   </p>
                 </div>
@@ -1619,13 +1732,13 @@
           {/* Import JSON Modal */}
           {showImport && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="builder-import-title" onKeyDown={e => e.key === 'Escape' && (setShowImport(false), setImportText(''), setImportError(''))}>
-              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
-                <div className="p-4 bg-gray-100 border-b flex items-center justify-between">
-                  <h3 id="builder-import-title" className="text-xl font-bold">📂 Import JSON Prompt</h3>
-                  <button onClick={() => { setShowImport(false); setImportText(''); setImportError(''); }} className="text-2xl hover:text-red-500" aria-label="Close">×</button>
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+                <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex items-center justify-between">
+                  <h3 id="builder-import-title" className="text-xl font-bold dark:text-white">📂 Import JSON Prompt</h3>
+                  <button onClick={() => { setShowImport(false); setImportText(''); setImportError(''); }} className="text-2xl hover:text-red-500 dark:text-gray-300" aria-label="Close">×</button>
                 </div>
                 <div className="p-4 space-y-3">
-                  <p className="text-sm text-gray-600">Paste a previously exported JSON prompt below. It will populate the current form fields.</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Paste a previously exported JSON prompt below. It will populate the current form fields.</p>
                   <textarea
                     value={importText}
                     onChange={e => { setImportText(e.target.value); setImportError(''); }}
@@ -1635,7 +1748,7 @@
                   />
                   {importError && <p className="text-red-500 text-sm">{importError}</p>}
                 </div>
-                <div className="p-4 bg-gray-50 border-t flex gap-2">
+                <div className="p-4 bg-gray-50 dark:bg-gray-700 border-t dark:border-gray-600 flex gap-2">
                   <button
                     onClick={importJSON}
                     disabled={!importText.trim()}
@@ -1657,8 +1770,17 @@
       );
     }
 
+    function App() {
+      return (
+        <React.Fragment>
+          <UniversalPromptStudio />
+          <ToastContainer />
+        </React.Fragment>
+      );
+    }
+
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<UniversalPromptStudio />);
+    root.render(<App />);
   </script>
 </body>
 </html>

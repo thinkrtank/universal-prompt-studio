@@ -35,6 +35,9 @@ That's it. Everything runs client-side in your browser.
 | Chain Builder | Multi-step sequential pipelines with output chaining |
 | Medium aesthetics | 10 artistic mediums with curated aesthetic keyword sets |
 | Industry skills | 25+ industry domains with top-10 skill arrays for LLM personas |
+| Dark Mode | Light / Dark / System theme with persistent preference |
+| Toast Notifications | Non-intrusive toast feedback for copy, save, and error events |
+| Auto-Save | Debounced auto-save with session recovery on next visit |
 
 ## Tech Stack
 
