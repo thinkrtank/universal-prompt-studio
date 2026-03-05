@@ -6,6 +6,18 @@ A browser-based prompt engineering tool for building structured prompts for AI i
 
 ![HTML5](https://img.shields.io/badge/HTML5-Single_File-orange) ![React](https://img.shields.io/badge/React-18-blue) ![Tailwind](https://img.shields.io/badge/Tailwind_CSS-3-38bdf8) ![License](https://img.shields.io/badge/License-MIT-green)
 
+## Screenshots
+
+<p>
+  <a href="screenshots/home.png"><img src="screenshots/home.png" width="180" alt="Home"></a>
+  <a href="screenshots/image-builder.png"><img src="screenshots/image-builder.png" width="180" alt="Image Prompt Builder"></a>
+  <a href="screenshots/video-builder.png"><img src="screenshots/video-builder.png" width="180" alt="Video Prompt Builder"></a>
+  <a href="screenshots/llm-builder.png"><img src="screenshots/llm-builder.png" width="180" alt="LLM Prompt Builder"></a>
+  <a href="screenshots/chain-builder.png"><img src="screenshots/chain-builder.png" width="180" alt="Chain Builder"></a>
+</p>
+
+<sub>Click any thumbnail to view full size.</sub>
+
 ## What It Does
 
 Universal Prompt Studio provides a guided, form-based interface for constructing detailed prompts across three modes:
