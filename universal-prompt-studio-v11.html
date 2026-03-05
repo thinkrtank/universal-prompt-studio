@@ -884,6 +884,7 @@
       const [templateName, setTemplateName] = useState('');
       const [showOutput, setShowOutput] = useState(false);
       const [viewingTemplate, setViewingTemplate] = useState(null);
+      const [templateViewMode, setTemplateViewMode] = useState('json');
       const [outputMode, setOutputMode] = useState('json'); // 'json' | 'text'
       const [showImport, setShowImport] = useState(false);
       const [importText, setImportText] = useState('');
@@ -1016,6 +1017,23 @@
 
       const generatedJSON = useMemo(() => buildNestedJSON(formData), [formData, buildNestedJSON]);
       const generateJSON = () => generatedJSON;
+
+      const jsonToPlainText = useCallback((jsonStr) => {
+        try {
+          const obj = JSON.parse(jsonStr);
+          const lines = [];
+          const flatten = (o, prefix = '') => {
+            Object.entries(o).forEach(([k, v]) => {
+              const label = (prefix ? `${prefix} › ${k}` : k).replace(/_/g, ' ');
+              if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, prefix ? `${prefix} › ${k}` : k);
+              else if (v !== '' && v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0))
+                lines.push(`${label}: ${Array.isArray(v) ? v.join(', ') : v}`);
+            });
+          };
+          flatten(obj);
+          return lines.join('\n').trim();
+        } catch { return jsonStr; }
+      }, []);
 
       const generatedPlainText = useMemo(() => {
         const d = formData;
@@ -1413,7 +1431,7 @@
                         </div>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => setViewingTemplate({ name, template })}
+                            onClick={() => { setTemplateViewMode('json'); setViewingTemplate({ name, template }); }}
                             className="px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
                           >
                             View
@@ -1445,19 +1463,39 @@
                         <h3 id="view-template-title" className="text-lg font-bold dark:text-white">{viewingTemplate.name}</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-300">Type: {viewingTemplate.template.type} · Saved: {new Date(viewingTemplate.template.savedAt).toLocaleDateString()}</p>
                       </div>
-                      <button onClick={() => setViewingTemplate(null)} className="text-2xl hover:text-red-500 dark:text-gray-300 ml-4" aria-label="Close">×</button>
+                      <div className="flex items-center gap-3">
+                        <div className="flex bg-gray-200 dark:bg-gray-600 rounded-lg p-1 text-sm">
+                          <button
+                            onClick={() => setTemplateViewMode('json')}
+                            className={`px-3 py-1 rounded-md font-medium transition-colors ${templateViewMode === 'json' ? 'bg-white dark:bg-gray-800 shadow text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-300 hover:text-gray-700'}`}
+                          >
+                            JSON
+                          </button>
+                          <button
+                            onClick={() => setTemplateViewMode('text')}
+                            className={`px-3 py-1 rounded-md font-medium transition-colors ${templateViewMode === 'text' ? 'bg-white dark:bg-gray-800 shadow text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-300 hover:text-gray-700'}`}
+                          >
+                            Plain Text
+                          </button>
+                        </div>
+                        <button onClick={() => setViewingTemplate(null)} className="text-2xl hover:text-red-500 dark:text-gray-300" aria-label="Close">×</button>
+                      </div>
                     </div>
                     <div className="overflow-auto max-h-[55vh] p-4">
                       <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm whitespace-pre-wrap">
-                        {buildNestedJSON(viewingTemplate.template.data)}
+                        {templateViewMode === 'json' ? buildNestedJSON(viewingTemplate.template.data) : jsonToPlainText(buildNestedJSON(viewingTemplate.template.data))}
                       </pre>
                     </div>
                     <div className="p-4 bg-gray-50 dark:bg-gray-700 border-t dark:border-gray-600 flex gap-2">
                       <button
-                        onClick={async () => { const ok = await safeClipboardWrite(buildNestedJSON(viewingTemplate.template.data)); if (ok) showToast('JSON copied to clipboard!'); }}
+                        onClick={async () => {
+                          const content = templateViewMode === 'json' ? buildNestedJSON(viewingTemplate.template.data) : jsonToPlainText(buildNestedJSON(viewingTemplate.template.data));
+                          const ok = await safeClipboardWrite(content);
+                          if (ok) showToast(`${templateViewMode === 'json' ? 'JSON' : 'Plain text'} copied to clipboard!`);
+                        }}
                         className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-900 font-semibold"
                       >
-                        📋 Copy JSON
+                        {`📋 Copy ${templateViewMode === 'json' ? 'JSON' : 'Text'}`}
                       </button>
                       <button
                         onClick={() => { loadTemplate(viewingTemplate.name); setViewingTemplate(null); }}
