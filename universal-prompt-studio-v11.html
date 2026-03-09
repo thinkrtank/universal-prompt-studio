@@ -4,12 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Universal Prompt Studio</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.9/babel.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Note: SRI integrity hashes cannot be used with unpkg/CDN URLs that may change.
-       Pin to exact versions (e.g. react@18.2.0) and add integrity= attributes for production use. -->
+  <!-- TODO: For production use, add integrity= attributes (SRI hashes) for the pinned CDN scripts above. -->
   <script>tailwind.config = { darkMode: 'class' }</script>
   <style>
     body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -247,6 +246,247 @@
       'advanced.output_preview': { type: 'checkbox', label: 'Request a brief plan before full output', section: 'advanced' },
     };
 
+    const DEV_SCHEMA = {
+      // Vision
+      user_intent: { type: 'textarea', label: 'What do you want to build?', placeholder: 'Describe your project vision in plain English...', section: 'vision' },
+      // Foundation
+      'foundation.project_type': { type: 'select', label: 'Project Type', options: ['web_app', 'mobile_app', 'desktop_app', 'pwa', 'cli_tool', 'api_service', 'browser_extension', 'saas_platform', 'library_package', 'fullstack_monorepo'], section: 'foundation' },
+      'foundation.project_name': { type: 'text', label: 'Project Name', placeholder: 'e.g., my-saas-app', section: 'foundation' },
+      'foundation.description': { type: 'textarea', label: 'Project Description', placeholder: 'Brief description of what the project does...', section: 'foundation' },
+      'foundation.scale': { type: 'select', label: 'Scale', options: ['prototype', 'mvp', 'production', 'enterprise'], default: 'mvp', section: 'foundation' },
+      'foundation.target_platforms': { type: 'multiselect', label: 'Target Platforms', options: ['web', 'ios', 'android', 'windows', 'macos', 'linux', 'cross_platform'], section: 'foundation' },
+      // Tech Stack
+      'tech_stack.language': { type: 'select', label: 'Language', options: ['typescript', 'javascript', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'csharp', 'dart', 'ruby', 'php', 'elixir'], section: 'tech_stack' },
+      'tech_stack.framework': { type: 'select', label: 'Framework', options: ['nextjs', 'react_vite', 'vue_nuxt', 'svelte_sveltekit', 'angular', 'express', 'fastapi', 'django', 'rails', 'spring_boot', 'gin', 'actix', 'dotnet', 'flutter', 'react_native', 'expo', 'electron', 'tauri'], section: 'tech_stack' },
+      'tech_stack.runtime': { type: 'select', label: 'Runtime', options: ['nodejs', 'deno', 'bun', 'browser', 'python3', 'jvm', 'dotnet_clr'], section: 'tech_stack' },
+      'tech_stack.package_manager': { type: 'select', label: 'Package Manager', options: ['npm', 'pnpm', 'yarn', 'bun', 'pip_uv', 'cargo', 'go_modules'], section: 'tech_stack' },
+      'tech_stack.monorepo_tool': { type: 'select', label: 'Monorepo Tool', options: ['none', 'turborepo', 'nx', 'lerna'], default: 'none', section: 'tech_stack' },
+      // Architecture
+      'architecture.pattern': { type: 'select', label: 'Architecture Pattern', options: ['monolith', 'modular_monolith', 'microservices', 'serverless', 'jamstack', 'event_driven', 'hexagonal_clean', 'cqrs_event_sourcing'], section: 'architecture' },
+      'architecture.state_mgmt': { type: 'select', label: 'State Management', options: ['react_context', 'redux_toolkit', 'zustand', 'jotai', 'pinia', 'mobx', 'signals', 'server_state_only'], section: 'architecture' },
+      'architecture.design_patterns': { type: 'multiselect', label: 'Design Patterns', options: ['repository', 'factory', 'observer', 'strategy', 'dependency_injection', 'mediator', 'command', 'saga'], section: 'architecture' },
+      'architecture.folder_structure': { type: 'select', label: 'Folder Structure', options: ['feature_based', 'layer_based', 'domain_driven', 'flat'], section: 'architecture' },
+      // Frontend
+      'frontend.ui_framework': { type: 'select', label: 'UI Framework', options: ['react', 'vue3', 'svelte', 'angular', 'solid', 'htmx', 'vanilla'], section: 'frontend' },
+      'frontend.styling': { type: 'select', label: 'Styling', options: ['tailwind', 'css_modules', 'styled_components', 'emotion', 'sass_scss', 'vanilla_css', 'uno_css', 'panda_css'], section: 'frontend' },
+      'frontend.component_library': { type: 'select', label: 'Component Library', options: ['none', 'shadcn_ui', 'radix', 'material_ui', 'ant_design', 'chakra', 'headless_ui', 'daisyui', 'mantine'], default: 'none', section: 'frontend' },
+      'frontend.responsive_strategy': { type: 'select', label: 'Responsive Strategy', options: ['mobile_first', 'desktop_first', 'fluid'], default: 'mobile_first', section: 'frontend' },
+      'frontend.accessibility_level': { type: 'select', label: 'Accessibility Level', options: ['wcag_aa', 'wcag_aaa', 'basic', 'none'], default: 'wcag_aa', section: 'frontend' },
+      'frontend.meta_framework': { type: 'select', label: 'Meta Framework', options: ['none', 'nextjs_app_router', 'nextjs_pages', 'nuxt3', 'sveltekit', 'remix', 'astro'], default: 'none', section: 'frontend' },
+      'frontend.rendering': { type: 'select', label: 'Rendering Strategy', options: ['csr', 'ssr', 'ssg', 'isr', 'streaming', 'hybrid'], section: 'frontend' },
+      // Backend
+      'backend.server_framework': { type: 'select', label: 'Server Framework', options: ['express', 'fastify', 'hono', 'nestjs', 'fastapi', 'django_rest', 'rails', 'spring_boot', 'gin', 'fiber', 'actix_web', 'dotnet_minimal_api'], section: 'backend' },
+      'backend.api_style': { type: 'select', label: 'API Style', options: ['rest', 'graphql', 'trpc', 'grpc', 'websocket', 'rest_graphql_hybrid'], section: 'backend' },
+      'backend.realtime': { type: 'select', label: 'Realtime', options: ['none', 'websockets', 'sse', 'polling', 'socket_io', 'pusher', 'ably'], default: 'none', section: 'backend' },
+      'backend.file_storage': { type: 'select', label: 'File Storage', options: ['none', 's3', 'cloudflare_r2', 'supabase_storage', 'firebase_storage', 'local'], default: 'none', section: 'backend' },
+      'backend.job_queue': { type: 'select', label: 'Job Queue', options: ['none', 'bullmq', 'celery', 'sidekiq', 'inngest', 'trigger_dev'], default: 'none', section: 'backend' },
+      'backend.email_service': { type: 'select', label: 'Email Service', options: ['none', 'resend', 'sendgrid', 'ses', 'postmark', 'mailgun'], default: 'none', section: 'backend' },
+      // Database
+      'database.primary_db': { type: 'select', label: 'Primary Database', options: ['postgresql', 'mysql', 'sqlite', 'mongodb', 'supabase_postgres', 'planetscale', 'neon', 'turso_libsql', 'cockroachdb', 'dynamodb', 'firebase_firestore'], section: 'database' },
+      'database.orm': { type: 'select', label: 'ORM', options: ['none', 'prisma', 'drizzle', 'typeorm', 'sqlalchemy', 'django_orm', 'active_record', 'gorm', 'sea_orm', 'entity_framework'], default: 'none', section: 'database' },
+      'database.cache': { type: 'select', label: 'Cache', options: ['none', 'redis', 'memcached', 'upstash', 'dragonfly'], default: 'none', section: 'database' },
+      'database.vector_db': { type: 'select', label: 'Vector DB', options: ['none', 'pinecone', 'weaviate', 'pgvector', 'qdrant', 'chromadb'], default: 'none', section: 'database' },
+      'database.migrations': { type: 'select', label: 'Migrations', options: ['orm_managed', 'manual_sql', 'dbmate', 'flyway'], section: 'database' },
+      'database.seeding': { type: 'checkbox', label: 'Include seed data', section: 'database' },
+      // Auth
+      'auth.strategy': { type: 'select', label: 'Auth Strategy', options: ['jwt_stateless', 'session_cookie', 'oauth2_only', 'magic_link', 'passkeys_webauthn', 'api_keys', 'none'], section: 'auth' },
+      'auth.auth_provider': { type: 'select', label: 'Auth Provider', options: ['custom', 'clerk', 'auth0', 'supabase_auth', 'firebase_auth', 'nextauth_authjs', 'lucia', 'kinde', 'keycloak'], section: 'auth' },
+      'auth.social_providers': { type: 'multiselect', label: 'Social Providers', options: ['google', 'github', 'apple', 'microsoft', 'discord', 'twitter', 'facebook', 'linkedin'], section: 'auth' },
+      'auth.mfa': { type: 'checkbox', label: 'Multi-factor authentication', section: 'auth' },
+      'auth.rbac': { type: 'checkbox', label: 'Role-based access control', section: 'auth' },
+      'auth.row_level_security': { type: 'checkbox', label: 'Row-level security', section: 'auth' },
+      // API Design
+      'api_design.versioning': { type: 'select', label: 'API Versioning', options: ['none', 'url_path', 'header', 'query_param'], default: 'none', section: 'api_design' },
+      'api_design.rate_limiting': { type: 'select', label: 'Rate Limiting', options: ['none', 'fixed_window', 'sliding_window', 'token_bucket'], default: 'none', section: 'api_design' },
+      'api_design.pagination': { type: 'select', label: 'Pagination', options: ['offset_limit', 'cursor', 'page_number', 'none'], section: 'api_design' },
+      'api_design.error_format': { type: 'select', label: 'Error Format', options: ['rfc7807', 'custom_json', 'http_status_only'], section: 'api_design' },
+      'api_design.documentation': { type: 'select', label: 'API Documentation', options: ['openapi_swagger', 'graphql_playground', 'redoc', 'none'], default: 'none', section: 'api_design' },
+      'api_design.validation': { type: 'select', label: 'Validation Library', options: ['zod', 'joi', 'yup', 'class_validator', 'pydantic', 'none'], section: 'api_design' },
+      // Testing
+      'testing.unit_framework': { type: 'select', label: 'Unit Test Framework', options: ['vitest', 'jest', 'pytest', 'go_test', 'xunit', 'rspec', 'junit'], section: 'testing' },
+      'testing.e2e_framework': { type: 'select', label: 'E2E Framework', options: ['none', 'playwright', 'cypress', 'selenium', 'detox'], default: 'none', section: 'testing' },
+      'testing.component_testing': { type: 'select', label: 'Component Testing', options: ['none', 'testing_library', 'storybook', 'chromatic'], default: 'none', section: 'testing' },
+      'testing.api_testing': { type: 'select', label: 'API Testing', options: ['none', 'supertest', 'httpx', 'postman', 'bruno'], default: 'none', section: 'testing' },
+      'testing.coverage_target': { type: 'select', label: 'Coverage Target', options: ['none', '60_percent', '80_percent', '90_plus_percent'], default: 'none', section: 'testing' },
+      'testing.test_strategy': { type: 'textarea', label: 'Test Strategy Notes', placeholder: 'Describe your testing approach...', section: 'testing' },
+      // DevOps
+      'devops.ci_cd': { type: 'select', label: 'CI/CD', options: ['github_actions', 'gitlab_ci', 'jenkins', 'circleci', 'vercel_auto', 'none'], section: 'devops' },
+      'devops.hosting': { type: 'select', label: 'Hosting', options: ['vercel', 'netlify', 'aws', 'gcp', 'azure', 'railway', 'fly_io', 'render', 'cloudflare', 'digitalocean', 'self_hosted'], section: 'devops' },
+      'devops.containerization': { type: 'select', label: 'Containerization', options: ['none', 'docker', 'docker_compose', 'podman'], default: 'none', section: 'devops' },
+      'devops.orchestration': { type: 'select', label: 'Orchestration', options: ['none', 'kubernetes', 'ecs', 'cloud_run', 'lambda'], default: 'none', section: 'devops' },
+      'devops.iac': { type: 'select', label: 'Infrastructure as Code', options: ['none', 'terraform', 'pulumi', 'cdk', 'sst'], default: 'none', section: 'devops' },
+      'devops.environments': { type: 'multiselect', label: 'Environments', options: ['development', 'staging', 'preview', 'production'], section: 'devops' },
+      // Security
+      'security.owasp_compliance': { type: 'checkbox', label: 'OWASP compliance', section: 'security' },
+      'security.input_sanitization': { type: 'select', label: 'Input Sanitization', options: ['strict', 'moderate', 'basic'], default: 'moderate', section: 'security' },
+      'security.cors_policy': { type: 'select', label: 'CORS Policy', options: ['restrictive', 'permissive', 'same_origin'], default: 'restrictive', section: 'security' },
+      'security.csp_headers': { type: 'checkbox', label: 'Content Security Policy headers', section: 'security' },
+      'security.secrets_management': { type: 'select', label: 'Secrets Management', options: ['env_files', 'vault', 'aws_secrets', 'doppler', 'infisical'], section: 'security' },
+      'security.dependency_scanning': { type: 'checkbox', label: 'Dependency scanning', section: 'security' },
+      'security.penetration_testing': { type: 'checkbox', label: 'Penetration testing', section: 'security' },
+      // Performance
+      'performance.caching_strategy': { type: 'select', label: 'Caching Strategy', options: ['none', 'cdn_edge', 'application_cache', 'stale_while_revalidate', 'full_isr'], default: 'none', section: 'performance' },
+      'performance.cdn': { type: 'select', label: 'CDN', options: ['none', 'cloudflare', 'vercel_edge', 'aws_cloudfront', 'fastly'], default: 'none', section: 'performance' },
+      'performance.bundle_optimization': { type: 'multiselect', label: 'Bundle Optimization', options: ['code_splitting', 'tree_shaking', 'lazy_loading', 'image_optimization', 'font_optimization'], section: 'performance' },
+      'performance.monitoring': { type: 'select', label: 'Monitoring', options: ['none', 'sentry', 'datadog', 'newrelic', 'grafana', 'opentelemetry'], default: 'none', section: 'performance' },
+      'performance.uptime_target': { type: 'select', label: 'Uptime Target', options: ['99_percent', '99_9_percent', '99_99_percent'], section: 'performance' },
+      // Documentation
+      'documentation.readme': { type: 'checkbox', label: 'README', default: true, section: 'documentation' },
+      'documentation.api_docs': { type: 'checkbox', label: 'API documentation', section: 'documentation' },
+      'documentation.architecture_docs': { type: 'checkbox', label: 'Architecture docs', section: 'documentation' },
+      'documentation.contributing_guide': { type: 'checkbox', label: 'Contributing guide', section: 'documentation' },
+      'documentation.changelog': { type: 'checkbox', label: 'Changelog', default: true, section: 'documentation' },
+      'documentation.adr': { type: 'checkbox', label: 'Architecture Decision Records', section: 'documentation' },
+      'documentation.inline_comments': { type: 'select', label: 'Inline Comments', options: ['minimal', 'moderate', 'comprehensive'], default: 'moderate', section: 'documentation' },
+      'documentation.doc_tool': { type: 'select', label: 'Documentation Tool', options: ['none', 'docusaurus', 'nextra', 'mintlify', 'readme_io', 'gitbook'], default: 'none', section: 'documentation' },
+      // Project Management
+      'project_mgmt.methodology': { type: 'select', label: 'Methodology', options: ['agile_scrum', 'kanban', 'shape_up', 'waterfall', 'ad_hoc'], section: 'project_mgmt' },
+      'project_mgmt.git_workflow': { type: 'select', label: 'Git Workflow', options: ['trunk_based', 'github_flow', 'gitflow', 'none'], section: 'project_mgmt' },
+      'project_mgmt.commit_convention': { type: 'select', label: 'Commit Convention', options: ['conventional_commits', 'gitmoji', 'angular', 'none'], section: 'project_mgmt' },
+      'project_mgmt.issue_tracker': { type: 'select', label: 'Issue Tracker', options: ['github_issues', 'linear', 'jira', 'shortcut', 'notion', 'none'], section: 'project_mgmt' },
+      'project_mgmt.code_review': { type: 'select', label: 'Code Review', options: ['required_approval', 'optional', 'pair_programming', 'none'], section: 'project_mgmt' },
+    };
+
+    const MARKETING_SCHEMA = {
+      // Campaign Strategy
+      'campaign.campaign_type': { type: 'select', label: 'Campaign Type', options: ['brand_awareness', 'lead_generation', 'product_launch', 'retention', 'reactivation', 'seasonal', 'community_building', 'thought_leadership', 'event_promotion'], section: 'campaign' },
+      'campaign.objective': { type: 'multiselect', label: 'Objectives', options: ['increase_awareness', 'drive_traffic', 'generate_leads', 'boost_sales', 'improve_engagement', 'build_community', 'establish_authority'], section: 'campaign' },
+      'campaign.kpis': { type: 'multiselect', label: 'KPIs', options: ['ctr', 'cpc', 'cpa', 'roas', 'ltv', 'cac', 'conversion_rate', 'engagement_rate', 'open_rate', 'bounce_rate', 'mrr', 'churn_rate'], section: 'campaign' },
+      'campaign.budget_tier': { type: 'select', label: 'Budget Tier', options: ['bootstrap', 'small_business', 'mid_market', 'enterprise'], section: 'campaign' },
+      'campaign.timeline': { type: 'select', label: 'Timeline', options: ['one_week', 'one_month', 'quarterly', 'six_months', 'annual', 'evergreen'], section: 'campaign' },
+      'campaign.competitive_positioning': { type: 'text', label: 'Competitive Positioning', placeholder: 'How do you differentiate from competitors?', section: 'campaign' },
+      // Target Audience
+      'audience.age_range': { type: 'select', label: 'Age Range', options: ['18_24', '25_34', '35_44', '45_54', '55_64', '65_plus', 'all_ages'], section: 'audience' },
+      'audience.gender': { type: 'select', label: 'Gender', options: ['all', 'male', 'female', 'non_binary'], default: 'all', section: 'audience' },
+      'audience.income': { type: 'select', label: 'Income Level', options: ['low', 'middle', 'upper_middle', 'high', 'any'], section: 'audience' },
+      'audience.geography': { type: 'multiselect', label: 'Geography', options: ['north_america', 'europe', 'asia_pacific', 'latin_america', 'middle_east', 'africa', 'global'], section: 'audience' },
+      'audience.interests': { type: 'textarea', label: 'Interests & Hobbies', placeholder: 'What does your audience care about?', section: 'audience' },
+      'audience.values': { type: 'multiselect', label: 'Values', options: ['sustainability', 'innovation', 'affordability', 'luxury', 'convenience', 'community', 'health_wellness', 'education', 'creativity'], section: 'audience' },
+      'audience.persona_name': { type: 'text', label: 'Persona Name', placeholder: 'e.g., Startup Sarah, Enterprise Eddie', section: 'audience' },
+      'audience.job_title': { type: 'text', label: 'Job Title', placeholder: 'e.g., Marketing Manager, CTO', section: 'audience' },
+      'audience.pain_points': { type: 'textarea', label: 'Pain Points', placeholder: 'What problems does your audience face?', section: 'audience' },
+      'audience.desires': { type: 'textarea', label: 'Desires & Goals', placeholder: 'What does your audience aspire to?', section: 'audience' },
+      'audience.journey_stage': { type: 'select', label: 'Journey Stage', options: ['awareness', 'consideration', 'decision', 'retention', 'advocacy'], section: 'audience' },
+      'audience.purchase_behavior': { type: 'select', label: 'Purchase Behavior', options: ['impulse', 'research_heavy', 'subscription', 'one_time', 'b2b_committee'], section: 'audience' },
+      'audience.tech_comfort': { type: 'select', label: 'Tech Comfort', options: ['low', 'moderate', 'high', 'expert'], section: 'audience' },
+      // Content Strategy
+      'content.content_types': { type: 'multiselect', label: 'Content Types', options: ['blog_posts', 'social_media', 'email_campaigns', 'landing_pages', 'ad_copy', 'video_scripts', 'whitepapers', 'case_studies', 'newsletters', 'webinars', 'ebooks', 'podcasts', 'infographics'], section: 'content' },
+      'content.tone': { type: 'select', label: 'Content Tone', options: ['professional', 'casual', 'playful', 'authoritative', 'friendly', 'inspirational', 'humorous', 'educational', 'conversational'], section: 'content' },
+      'content.content_pillars': { type: 'textarea', label: 'Content Pillars', placeholder: 'Core themes your content revolves around...', section: 'content' },
+      'content.repurposing_strategy': { type: 'select', label: 'Repurposing Strategy', options: ['none', 'blog_to_social', 'video_to_clips', 'podcast_to_blog', 'full_omnichannel'], section: 'content' },
+      'content.ai_content_tools': { type: 'multiselect', label: 'AI Content Tools', options: ['chatgpt', 'claude', 'jasper', 'copy_ai', 'writesonic', 'grammarly', 'surfer_seo', 'frase'], section: 'content' },
+      // Channel Strategy
+      'channels.social_platforms': { type: 'multiselect', label: 'Social Platforms', options: ['instagram', 'tiktok', 'linkedin', 'twitter_x', 'facebook', 'youtube', 'pinterest', 'reddit', 'threads', 'bluesky', 'discord'], section: 'channels' },
+      'channels.email': { type: 'checkbox', label: 'Email marketing', default: true, section: 'channels' },
+      'channels.sms': { type: 'checkbox', label: 'SMS marketing', section: 'channels' },
+      'channels.paid_search': { type: 'checkbox', label: 'Paid search (SEM)', section: 'channels' },
+      'channels.display_ads': { type: 'checkbox', label: 'Display advertising', section: 'channels' },
+      'channels.influencer': { type: 'checkbox', label: 'Influencer marketing', section: 'channels' },
+      'channels.affiliate': { type: 'checkbox', label: 'Affiliate marketing', section: 'channels' },
+      'channels.podcast_ads': { type: 'checkbox', label: 'Podcast advertising', section: 'channels' },
+      'channels.community_platforms': { type: 'multiselect', label: 'Community Platforms', options: ['slack', 'discord', 'circle', 'facebook_groups', 'reddit', 'github_discussions'], section: 'channels' },
+      'channels.primary_channel': { type: 'select', label: 'Primary Channel', options: ['social_media', 'email', 'seo', 'paid_ads', 'content_marketing', 'influencer', 'community'], section: 'channels' },
+      // Brand Voice
+      'brand_voice.personality_traits': { type: 'multiselect', label: 'Personality Traits', options: ['bold', 'confident', 'humble', 'playful', 'innovative', 'trustworthy', 'sophisticated', 'approachable', 'expert', 'empathetic'], section: 'brand_voice' },
+      'brand_voice.positioning_statement': { type: 'textarea', label: 'Positioning Statement', placeholder: 'For [audience], [brand] is the [category] that [benefit]...', section: 'brand_voice' },
+      'brand_voice.tagline': { type: 'text', label: 'Tagline', placeholder: 'e.g., Just Do It, Think Different', section: 'brand_voice' },
+      'brand_voice.usp': { type: 'textarea', label: 'Unique Selling Proposition', placeholder: 'What makes you uniquely valuable?', section: 'brand_voice' },
+      'brand_voice.mission': { type: 'text', label: 'Mission Statement', placeholder: 'Your brand mission in one sentence', section: 'brand_voice' },
+      'brand_voice.do_language': { type: 'textarea', label: 'DO Use (language)', placeholder: 'Words, phrases, and styles to use...', section: 'brand_voice' },
+      'brand_voice.dont_language': { type: 'textarea', label: "DON'T Use (language)", placeholder: 'Words, phrases, and styles to avoid...', section: 'brand_voice' },
+      // SEO
+      'seo.primary_keywords': { type: 'textarea', label: 'Primary Keywords', placeholder: 'Main keywords to target, one per line...', section: 'seo' },
+      'seo.keyword_intent': { type: 'select', label: 'Keyword Intent', options: ['informational', 'commercial', 'transactional', 'navigational', 'mixed'], section: 'seo' },
+      'seo.long_tail_keywords': { type: 'textarea', label: 'Long-Tail Keywords', placeholder: 'Specific phrases to target...', section: 'seo' },
+      'seo.target_serp_features': { type: 'multiselect', label: 'Target SERP Features', options: ['featured_snippet', 'people_also_ask', 'knowledge_panel', 'local_pack', 'image_pack', 'video_carousel'], section: 'seo' },
+      'seo.internal_linking': { type: 'select', label: 'Internal Linking Strategy', options: ['hub_and_spoke', 'siloed', 'flat', 'contextual'], section: 'seo' },
+      'seo.schema_markup': { type: 'multiselect', label: 'Schema Markup', options: ['article', 'faq', 'product', 'how_to', 'video', 'organization', 'local_business', 'review'], section: 'seo' },
+      // Social Media
+      'social.post_formats': { type: 'multiselect', label: 'Post Formats', options: ['carousel', 'single_image', 'short_video', 'reels', 'stories', 'live_streams', 'text_only', 'polls', 'memes', 'educational_carousel'], section: 'social' },
+      'social.hashtag_strategy': { type: 'select', label: 'Hashtag Strategy', options: ['branded', 'trending', 'niche', 'mixed', 'minimal'], section: 'social' },
+      'social.posting_frequency': { type: 'select', label: 'Posting Frequency', options: ['daily', 'few_times_weekly', 'weekly', 'bi_weekly', 'monthly'], section: 'social' },
+      'social.engagement_tactics': { type: 'multiselect', label: 'Engagement Tactics', options: ['questions', 'polls', 'contests', 'challenges', 'behind_the_scenes', 'user_spotlights', 'ama_sessions', 'collaborations'], section: 'social' },
+      'social.ugc_strategy': { type: 'select', label: 'UGC Strategy', options: ['none', 'hashtag_campaigns', 'reviews_testimonials', 'contests', 'brand_ambassadors'], default: 'none', section: 'social' },
+      'social.community_management': { type: 'select', label: 'Community Management', options: ['reactive_only', 'proactive', 'dedicated_team', 'automated_plus_human'], section: 'social' },
+      // Email Marketing
+      'email_mkt.sequence_types': { type: 'multiselect', label: 'Email Sequence Types', options: ['welcome', 'nurture', 'abandoned_cart', 're_engagement', 'post_purchase', 'upsell', 'promotional', 'vip_exclusive'], section: 'email_mkt' },
+      'email_mkt.send_frequency': { type: 'select', label: 'Send Frequency', options: ['daily', 'few_times_weekly', 'weekly', 'bi_weekly', 'monthly'], section: 'email_mkt' },
+      'email_mkt.subject_line_style': { type: 'select', label: 'Subject Line Style', options: ['curiosity', 'benefit_driven', 'urgency', 'personalized', 'question', 'emoji_heavy'], section: 'email_mkt' },
+      'email_mkt.personalization_level': { type: 'select', label: 'Personalization Level', options: ['none', 'name_only', 'segmented', 'behavioral', 'hyper_personalized'], section: 'email_mkt' },
+      'email_mkt.cta_strategy': { type: 'select', label: 'CTA Strategy', options: ['single_cta', 'multiple_ctas', 'soft_cta', 'hard_sell'], section: 'email_mkt' },
+      'email_mkt.segmentation': { type: 'multiselect', label: 'Segmentation', options: ['demographics', 'behavior', 'purchase_history', 'engagement_level', 'lifecycle_stage', 'preferences'], section: 'email_mkt' },
+      'email_mkt.ab_test_variables': { type: 'multiselect', label: 'A/B Test Variables', options: ['subject_line', 'send_time', 'cta_text', 'layout', 'personalization', 'content_length'], section: 'email_mkt' },
+      // Paid Advertising
+      'advertising.platforms': { type: 'multiselect', label: 'Ad Platforms', options: ['google_search', 'google_display', 'google_youtube', 'meta_facebook', 'meta_instagram', 'tiktok_ads', 'linkedin_sponsored', 'twitter_promoted', 'reddit_ads', 'programmatic'], section: 'advertising' },
+      'advertising.ad_formats': { type: 'multiselect', label: 'Ad Formats', options: ['text', 'image', 'carousel', 'video', 'collection', 'lead_gen', 'retargeting', 'shopping'], section: 'advertising' },
+      'advertising.targeting': { type: 'select', label: 'Targeting Approach', options: ['broad', 'interest_based', 'lookalike', 'retargeting', 'contextual', 'account_based'], section: 'advertising' },
+      'advertising.bidding': { type: 'select', label: 'Bidding Strategy', options: ['manual_cpc', 'maximize_conversions', 'target_roas', 'maximize_clicks', 'cost_cap'], section: 'advertising' },
+      'advertising.creative_approach': { type: 'select', label: 'Creative Approach', options: ['performance_creative', 'brand_storytelling', 'ugc_style', 'testimonial_based', 'product_focused'], section: 'advertising' },
+      'advertising.budget_allocation': { type: 'textarea', label: 'Budget Allocation', placeholder: 'How to split budget across platforms...', section: 'advertising' },
+      // Analytics
+      'analytics.attribution_model': { type: 'select', label: 'Attribution Model', options: ['last_click', 'first_click', 'linear', 'time_decay', 'data_driven', 'multi_touch'], section: 'analytics' },
+      'analytics.conversion_events': { type: 'multiselect', label: 'Conversion Events', options: ['purchase', 'sign_up', 'add_to_cart', 'form_submit', 'page_view', 'scroll_depth', 'video_view', 'download'], section: 'analytics' },
+      'analytics.funnel_analysis': { type: 'checkbox', label: 'Funnel analysis', section: 'analytics' },
+      'analytics.cohort_analysis': { type: 'checkbox', label: 'Cohort analysis', section: 'analytics' },
+      'analytics.ltv_tracking': { type: 'checkbox', label: 'LTV tracking', section: 'analytics' },
+      'analytics.tool_stack': { type: 'multiselect', label: 'Analytics Tools', options: ['google_analytics_4', 'mixpanel', 'amplitude', 'segment', 'hubspot', 'looker_studio'], section: 'analytics' },
+      'analytics.optimization_cadence': { type: 'select', label: 'Optimization Cadence', options: ['daily', 'weekly', 'bi_weekly', 'monthly', 'quarterly'], section: 'analytics' },
+      // AI Tools
+      'ai_tools.content_gen': { type: 'checkbox', label: 'AI content generation', section: 'ai_tools' },
+      'ai_tools.content_gen_tools': { type: 'multiselect', label: 'Content Gen Tools', options: ['chatgpt', 'claude', 'jasper', 'copy_ai', 'writesonic', 'notion_ai'], section: 'ai_tools', condition: 'ai_tools.content_gen' },
+      'ai_tools.image_gen': { type: 'checkbox', label: 'AI image generation', section: 'ai_tools' },
+      'ai_tools.image_gen_tools': { type: 'multiselect', label: 'Image Gen Tools', options: ['midjourney', 'dall_e', 'stable_diffusion', 'flux', 'canva_ai', 'adobe_firefly'], section: 'ai_tools', condition: 'ai_tools.image_gen' },
+      'ai_tools.video_gen': { type: 'checkbox', label: 'AI video generation', section: 'ai_tools' },
+      'ai_tools.video_gen_tools': { type: 'multiselect', label: 'Video Gen Tools', options: ['veo', 'sora', 'runway', 'synthesia', 'heygen', 'descript'], section: 'ai_tools', condition: 'ai_tools.video_gen' },
+      'ai_tools.personalization': { type: 'checkbox', label: 'AI personalization', section: 'ai_tools' },
+      'ai_tools.predictive_analytics': { type: 'checkbox', label: 'Predictive analytics', section: 'ai_tools' },
+      'ai_tools.chatbot': { type: 'checkbox', label: 'AI chatbot', section: 'ai_tools' },
+      'ai_tools.sentiment_analysis': { type: 'checkbox', label: 'Sentiment analysis', section: 'ai_tools' },
+      'ai_tools.seo_automation': { type: 'checkbox', label: 'SEO automation', section: 'ai_tools' },
+      // Compliance
+      'compliance.gdpr': { type: 'checkbox', label: 'GDPR compliance', section: 'compliance' },
+      'compliance.ccpa': { type: 'checkbox', label: 'CCPA compliance', section: 'compliance' },
+      'compliance.can_spam': { type: 'checkbox', label: 'CAN-SPAM compliance', default: true, section: 'compliance' },
+      'compliance.ftc_guidelines': { type: 'checkbox', label: 'FTC guidelines', section: 'compliance' },
+      'compliance.ai_disclosure': { type: 'checkbox', label: 'AI content disclosure', section: 'compliance' },
+      'compliance.disclosure_types': { type: 'multiselect', label: 'Disclosure Types', options: ['ad', 'affiliate', 'sponsored', 'ai_generated'], section: 'compliance' },
+      'compliance.platform_policies': { type: 'text', label: 'Platform-Specific Policies', placeholder: 'Any platform rules to follow...', section: 'compliance' },
+      // Copywriting
+      'copywriting.framework': { type: 'select', label: 'Copywriting Framework', options: ['aida', 'pas', 'bab', 'storybrand', 'four_ps', 'hero_journey', 'none'], default: 'none', section: 'copywriting' },
+      'copywriting.hook_types': { type: 'multiselect', label: 'Hook Types', options: ['question', 'surprising_stat', 'bold_promise', 'relatable_problem', 'contrarian_take', 'curiosity_gap', 'pattern_interrupt'], section: 'copywriting' },
+      'copywriting.proof_elements': { type: 'multiselect', label: 'Proof Elements', options: ['testimonials', 'case_studies', 'statistics', 'expert_endorsements', 'awards', 'before_after', 'guarantee'], section: 'copywriting' },
+      'copywriting.cta_urgency': { type: 'select', label: 'CTA Urgency', options: ['none', 'soft', 'moderate', 'high', 'scarcity'], section: 'copywriting' },
+      'copywriting.word_choice': { type: 'select', label: 'Word Choice', options: ['simple', 'power_words', 'technical', 'emotional', 'action_oriented'], section: 'copywriting' },
+      // Visual Branding
+      'visual.brand_colors': { type: 'text', label: 'Brand Colors', placeholder: 'e.g., #FF5733, deep navy, coral', section: 'visual' },
+      'visual.secondary_colors': { type: 'text', label: 'Secondary Colors', placeholder: 'Accent and supporting colors...', section: 'visual' },
+      'visual.typography': { type: 'text', label: 'Typography', placeholder: 'e.g., Inter for headings, Open Sans for body', section: 'visual' },
+      'visual.imagery_style': { type: 'select', label: 'Imagery Style', options: ['photorealistic', 'bright_illustrations', 'minimal_geometric', 'lifestyle_authentic', '3d_renders', 'mixed'], section: 'visual' },
+      'visual.design_consistency': { type: 'select', label: 'Design Consistency', options: ['strict_brand_guide', 'flexible_guidelines', 'creative_freedom'], section: 'visual' },
+      // Market Research
+      'research.competitor_analysis': { type: 'checkbox', label: 'Include competitor analysis', section: 'research' },
+      'research.market_trends': { type: 'textarea', label: 'Market Trends', placeholder: 'Current trends in your market...', section: 'research' },
+      'research.seasonal_factors': { type: 'textarea', label: 'Seasonal Factors', placeholder: 'Key dates, seasons, events to consider...', section: 'research' },
+      'research.industry_considerations': { type: 'textarea', label: 'Industry Considerations', placeholder: 'Regulations, norms, best practices...', section: 'research' },
+      // Campaign Meta
+      'meta.campaign_name': { type: 'text', label: 'Campaign Name', placeholder: 'e.g., Q1 2025 Brand Launch', section: 'meta' },
+      'meta.launch_date': { type: 'text', label: 'Launch Date', placeholder: 'e.g., March 15, 2025', section: 'meta' },
+      'meta.campaign_owner': { type: 'text', label: 'Campaign Owner', placeholder: 'Who is responsible?', section: 'meta' },
+      'meta.success_criteria': { type: 'textarea', label: 'Success Criteria', placeholder: 'How will you measure success?', section: 'meta' },
+      'meta.constraints': { type: 'textarea', label: 'Constraints', placeholder: 'Budget, time, or resource limitations...', section: 'meta' },
+      'meta.ai_limitations': { type: 'textarea', label: 'AI Limitations', placeholder: 'What should AI NOT do in this campaign?', section: 'meta' },
+    };
+
+    const SCHEMAS = { image: IMAGE_SCHEMA, video: VIDEO_SCHEMA, llm: LLM_SCHEMA, dev: DEV_SCHEMA, marketing: MARKETING_SCHEMA };
+
+    const TYPE_META = {
+      image:     { icon: '🖼️', title: 'Image Prompt', shortTitle: 'Image', desc: 'Gemini, Flux, Midjourney, DALL-E, SD', color: 'from-pink-500 to-rose-500', pasteTarget: 'Gemini, ChatGPT, or your image generator' },
+      video:     { icon: '🎬', title: 'Video Prompt', shortTitle: 'Video', desc: 'Veo 3, Sora, Runway, Kling, Hailuo', color: 'from-blue-500 to-cyan-500', pasteTarget: 'Veo, Sora, Runway, or your video generator' },
+      llm:       { icon: '🤖', title: 'LLM Prompt', shortTitle: 'LLM', desc: 'ChatGPT, Claude, Gemini, Llama', color: 'from-green-500 to-emerald-500', pasteTarget: 'ChatGPT, Claude, or your LLM' },
+      dev:       { icon: '💻', title: 'Dev Prompt', shortTitle: 'Dev', desc: 'Web, mobile, desktop, API — full stack specs', color: 'from-violet-500 to-purple-500', pasteTarget: 'ChatGPT, Claude, Cursor, or your AI coding tool' },
+      marketing: { icon: '📢', title: 'Marketing Prompt', shortTitle: 'Marketing', desc: 'Campaigns, SEO, ads, content, analytics', color: 'from-amber-500 to-orange-500', pasteTarget: 'ChatGPT, Claude, Jasper, or your AI marketing tool' },
+    };
+
     const SECTION_INFO = {
       image: {
         intent: { title: 'Vision', icon: '💡', desc: 'Describe what you want to create' },
@@ -287,6 +527,41 @@
         iteration: { title: 'Iteration',        icon: '🔁',  desc: 'Drafts, revisions, feedback cycles' },
         safety:    { title: 'Safety',           icon: '🛡️',  desc: 'Guardrails, bias checks, disclaimers' },
         advanced:  { title: 'Advanced',         icon: '🔧',  desc: 'Reasoning and creativity options' },
+      },
+      dev: {
+        vision:        { title: 'Project Vision',   icon: '💡', desc: 'Describe what you want to build' },
+        foundation:    { title: 'Foundation',        icon: '🏗️', desc: 'Project type, scale, platforms' },
+        tech_stack:    { title: 'Tech Stack',        icon: '⚡', desc: 'Language, framework, runtime' },
+        architecture:  { title: 'Architecture',      icon: '🧱', desc: 'Patterns, state, structure' },
+        frontend:      { title: 'Frontend',          icon: '🖥️', desc: 'UI framework, styling, rendering' },
+        backend:       { title: 'Backend',           icon: '⚙️', desc: 'Server, API, services' },
+        database:      { title: 'Database',          icon: '🗄️', desc: 'DB, ORM, cache, migrations' },
+        auth:          { title: 'Auth & Identity',   icon: '🔐', desc: 'Authentication, providers, RBAC' },
+        api_design:    { title: 'API Design',        icon: '🔌', desc: 'Versioning, rate limits, docs' },
+        testing:       { title: 'Testing',           icon: '🧪', desc: 'Unit, E2E, coverage' },
+        devops:        { title: 'DevOps & Deploy',   icon: '🚀', desc: 'CI/CD, hosting, containers' },
+        security:      { title: 'Security',          icon: '🛡️', desc: 'OWASP, CORS, secrets' },
+        performance:   { title: 'Performance',       icon: '📊', desc: 'Caching, CDN, monitoring' },
+        documentation: { title: 'Documentation',     icon: '📝', desc: 'README, API docs, ADRs' },
+        project_mgmt:  { title: 'Project Mgmt',      icon: '📋', desc: 'Workflow, git, reviews' },
+      },
+      marketing: {
+        campaign:    { title: 'Campaign Strategy', icon: '🎯', desc: 'Type, objectives, KPIs, budget' },
+        audience:    { title: 'Target Audience',   icon: '👥', desc: 'Demographics, personas, journey' },
+        content:     { title: 'Content Strategy',  icon: '📝', desc: 'Content types, tone, pillars' },
+        channels:    { title: 'Channel Strategy',  icon: '📡', desc: 'Social, email, paid, community' },
+        brand_voice: { title: 'Brand Voice',       icon: '🗣️', desc: 'Personality, positioning, USP' },
+        seo:         { title: 'SEO & Search',      icon: '🔍', desc: 'Keywords, SERP, schema' },
+        social:      { title: 'Social Media',      icon: '📱', desc: 'Formats, hashtags, engagement' },
+        email_mkt:   { title: 'Email Marketing',   icon: '✉️', desc: 'Sequences, personalization, A/B' },
+        advertising: { title: 'Paid Advertising',  icon: '💰', desc: 'Platforms, formats, targeting' },
+        analytics:   { title: 'Analytics',         icon: '📊', desc: 'Attribution, funnels, tools' },
+        ai_tools:    { title: 'AI Tools',          icon: '🤖', desc: 'Content gen, image gen, automation' },
+        compliance:  { title: 'Compliance',        icon: '⚖️', desc: 'GDPR, CAN-SPAM, disclosures' },
+        copywriting: { title: 'Copywriting',       icon: '✍️', desc: 'Frameworks, hooks, proof' },
+        visual:      { title: 'Visual Branding',   icon: '🎨', desc: 'Colors, typography, imagery' },
+        research:    { title: 'Market Research',    icon: '🔬', desc: 'Competitors, trends, seasonal' },
+        meta:        { title: 'Campaign Meta',      icon: '📋', desc: 'Name, dates, success criteria' },
       }
     };
 
@@ -424,7 +699,163 @@
           'safety.content_level': 'standard',
           'advanced.step_by_step': true,
         },
-      }
+      },
+      dev: {
+        'Full-Stack SaaS': {
+          'foundation.project_type': 'web_app',
+          'foundation.scale': 'production',
+          'foundation.target_platforms': ['web'],
+          'tech_stack.language': 'typescript',
+          'tech_stack.framework': 'nextjs',
+          'tech_stack.runtime': 'nodejs',
+          'tech_stack.package_manager': 'pnpm',
+          'architecture.pattern': 'modular_monolith',
+          'architecture.state_mgmt': 'zustand',
+          'architecture.folder_structure': 'feature_based',
+          'frontend.ui_framework': 'react',
+          'frontend.styling': 'tailwind',
+          'frontend.component_library': 'shadcn_ui',
+          'frontend.meta_framework': 'nextjs_app_router',
+          'frontend.rendering': 'hybrid',
+          'backend.api_style': 'trpc',
+          'database.primary_db': 'postgresql',
+          'database.orm': 'prisma',
+          'database.cache': 'redis',
+          'auth.strategy': 'session_cookie',
+          'auth.auth_provider': 'clerk',
+          'devops.ci_cd': 'github_actions',
+          'devops.hosting': 'vercel',
+          'devops.containerization': 'docker',
+          'devops.environments': ['development', 'staging', 'production'],
+          'documentation.readme': true,
+          'documentation.changelog': true,
+          'project_mgmt.git_workflow': 'trunk_based',
+          'project_mgmt.commit_convention': 'conventional_commits',
+        },
+        'React Native Mobile': {
+          'foundation.project_type': 'mobile_app',
+          'foundation.scale': 'mvp',
+          'foundation.target_platforms': ['ios', 'android'],
+          'tech_stack.language': 'typescript',
+          'tech_stack.framework': 'expo',
+          'tech_stack.runtime': 'nodejs',
+          'tech_stack.package_manager': 'npm',
+          'architecture.state_mgmt': 'zustand',
+          'database.primary_db': 'firebase_firestore',
+          'auth.strategy': 'oauth2_only',
+          'auth.auth_provider': 'supabase_auth',
+          'auth.social_providers': ['google', 'apple'],
+          'testing.e2e_framework': 'detox',
+          'devops.ci_cd': 'github_actions',
+        },
+        'REST API Service': {
+          'foundation.project_type': 'api_service',
+          'foundation.scale': 'production',
+          'tech_stack.language': 'typescript',
+          'tech_stack.framework': 'express',
+          'tech_stack.runtime': 'nodejs',
+          'tech_stack.package_manager': 'pnpm',
+          'architecture.pattern': 'modular_monolith',
+          'architecture.design_patterns': ['repository', 'dependency_injection'],
+          'backend.server_framework': 'fastify',
+          'backend.api_style': 'rest',
+          'database.primary_db': 'postgresql',
+          'database.orm': 'prisma',
+          'auth.strategy': 'jwt_stateless',
+          'api_design.versioning': 'url_path',
+          'api_design.rate_limiting': 'sliding_window',
+          'api_design.pagination': 'cursor',
+          'api_design.error_format': 'rfc7807',
+          'api_design.documentation': 'openapi_swagger',
+          'api_design.validation': 'zod',
+          'testing.unit_framework': 'vitest',
+          'testing.api_testing': 'supertest',
+          'devops.containerization': 'docker',
+          'documentation.readme': true,
+          'documentation.api_docs': true,
+        },
+        'Electron Desktop': {
+          'foundation.project_type': 'desktop_app',
+          'foundation.scale': 'mvp',
+          'foundation.target_platforms': ['windows', 'macos', 'linux'],
+          'tech_stack.language': 'typescript',
+          'tech_stack.framework': 'electron',
+          'tech_stack.runtime': 'nodejs',
+          'frontend.ui_framework': 'react',
+          'frontend.styling': 'tailwind',
+          'database.primary_db': 'sqlite',
+          'database.orm': 'prisma',
+          'testing.unit_framework': 'vitest',
+          'devops.ci_cd': 'github_actions',
+          'documentation.readme': true,
+          'documentation.changelog': true,
+        },
+      },
+      marketing: {
+        'SaaS B2B Lead Gen': {
+          'campaign.campaign_type': 'lead_generation',
+          'campaign.objective': ['generate_leads', 'establish_authority'],
+          'campaign.budget_tier': 'mid_market',
+          'campaign.timeline': 'quarterly',
+          'audience.journey_stage': 'consideration',
+          'audience.purchase_behavior': 'b2b_committee',
+          'content.content_types': ['whitepapers', 'case_studies', 'blog_posts', 'newsletters', 'webinars'],
+          'content.tone': 'professional',
+          'channels.social_platforms': ['linkedin'],
+          'channels.email': true,
+          'channels.paid_search': true,
+          'seo.keyword_intent': 'commercial',
+          'email_mkt.sequence_types': ['welcome', 'nurture'],
+          'email_mkt.personalization_level': 'segmented',
+          'copywriting.framework': 'storybrand',
+          'analytics.attribution_model': 'multi_touch',
+          'analytics.tool_stack': ['google_analytics_4', 'hubspot'],
+        },
+        'E-Commerce Seasonal': {
+          'campaign.campaign_type': 'seasonal',
+          'campaign.objective': ['boost_sales', 'drive_traffic'],
+          'campaign.budget_tier': 'small_business',
+          'campaign.timeline': 'one_month',
+          'content.content_types': ['social_media', 'ad_copy', 'email_campaigns'],
+          'content.tone': 'playful',
+          'channels.social_platforms': ['instagram', 'facebook', 'tiktok'],
+          'channels.email': true,
+          'advertising.platforms': ['meta_facebook', 'meta_instagram', 'google_search'],
+          'advertising.ad_formats': ['carousel', 'video', 'shopping'],
+          'email_mkt.sequence_types': ['promotional', 'abandoned_cart'],
+          'copywriting.cta_urgency': 'scarcity',
+          'copywriting.hook_types': ['bold_promise', 'curiosity_gap'],
+        },
+        'Startup Brand Launch': {
+          'campaign.campaign_type': 'brand_awareness',
+          'campaign.objective': ['increase_awareness', 'build_community'],
+          'campaign.budget_tier': 'bootstrap',
+          'campaign.timeline': 'quarterly',
+          'content.content_types': ['social_media', 'video_scripts', 'blog_posts'],
+          'content.tone': 'inspirational',
+          'channels.social_platforms': ['tiktok', 'instagram', 'youtube'],
+          'brand_voice.personality_traits': ['bold', 'innovative', 'approachable'],
+          'social.post_formats': ['short_video', 'reels', 'stories', 'carousel'],
+          'social.posting_frequency': 'daily',
+          'copywriting.framework': 'hero_journey',
+          'copywriting.hook_types': ['contrarian_take', 'pattern_interrupt'],
+        },
+        'Content Marketing Engine': {
+          'campaign.campaign_type': 'thought_leadership',
+          'campaign.objective': ['establish_authority', 'drive_traffic', 'generate_leads'],
+          'campaign.timeline': 'evergreen',
+          'content.content_types': ['blog_posts', 'newsletters', 'ebooks', 'podcasts'],
+          'content.tone': 'educational',
+          'content.repurposing_strategy': 'full_omnichannel',
+          'channels.email': true,
+          'channels.primary_channel': 'content_marketing',
+          'seo.keyword_intent': 'informational',
+          'seo.internal_linking': 'hub_and_spoke',
+          'email_mkt.sequence_types': ['welcome', 'nurture'],
+          'email_mkt.send_frequency': 'weekly',
+          'analytics.tool_stack': ['google_analytics_4', 'segment'],
+        },
+      },
     };
 
     // Safe clipboard utility with fallback for file:// protocol
@@ -919,7 +1350,7 @@
         } catch (e) { /* ignore */ }
       }, []);
 
-      const schema = promptType === 'image' ? IMAGE_SCHEMA : promptType === 'video' ? VIDEO_SCHEMA : LLM_SCHEMA;
+      const schema = SCHEMAS[promptType];
       const sectionInfo = promptType ? SECTION_INFO[promptType] : {};
       const sections = Object.keys(sectionInfo);
 
@@ -930,7 +1361,7 @@
             isLoadingTemplateRef.current = false;
             return;
           }
-          const currentSchema = promptType === 'image' ? IMAGE_SCHEMA : promptType === 'video' ? VIDEO_SCHEMA : LLM_SCHEMA;
+          const currentSchema = SCHEMAS[promptType];
           const defaults = {};
           Object.entries(currentSchema).forEach(([key, config]) => {
             if (config.default !== undefined) {
@@ -1115,7 +1546,7 @@
           add('Creativity Level', d['advanced.temperature_hint']);
 
         } else {
-          // Image / Video plain text fallback — just flatten nested JSON to readable lines
+          // Non-LLM types: flatten nested JSON to readable lines
           const nested = JSON.parse(buildNestedJSON(formData));
           const flatten = (obj, prefix='') => {
             Object.entries(obj).forEach(([k, v]) => {
@@ -1140,7 +1571,7 @@
             return;
           }
           const FORBIDDEN_KEYS = ['__proto__', 'constructor', 'prototype'];
-          const currentSchema = promptType === 'image' ? IMAGE_SCHEMA : promptType === 'video' ? VIDEO_SCHEMA : LLM_SCHEMA;
+          const currentSchema = SCHEMAS[promptType];
           const validKeys = new Set(Object.keys(currentSchema));
           const flat = {};
           const flattenObj = (obj, prefix='') => {
@@ -1289,7 +1720,7 @@
                 id={`field-${key}`}
                 type="number"
                 value={value}
-                onChange={e => updateField(key, parseFloat(e.target.value) || '')}
+                onChange={e => { const n = parseFloat(e.target.value); updateField(key, isNaN(n) ? '' : n); }}
                 placeholder={config.placeholder}
                 min={config.min}
                 max={config.max}
@@ -1372,7 +1803,7 @@
             <div className="max-w-4xl mx-auto">
               <div className="text-center mb-12">
                 <h1 className="text-4xl font-bold text-white mb-4">Universal Prompt Studio</h1>
-                <p className="text-purple-200 text-lg mb-6">Build structured JSON prompts for AI image, video, and text generation</p>
+                <p className="text-purple-200 text-lg mb-6">Build structured prompts for AI image, video, text, dev, and marketing workflows</p>
                 <div className="mb-4">
                   <ThemeToggle isDark={isDark} mode={themeMode} setMode={setThemeMode} />
                 </div>
@@ -1390,12 +1821,8 @@
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                {[
-                  { type: 'image', icon: '🖼️', title: 'Image Prompt', desc: 'Gemini, Flux, Midjourney, DALL-E, Stable Diffusion', color: 'from-pink-500 to-rose-500' },
-                  { type: 'video', icon: '🎬', title: 'Video Prompt', desc: 'Veo 3, Sora, Runway, Kling, Hailuo', color: 'from-blue-500 to-cyan-500' },
-                  { type: 'llm', icon: '🤖', title: 'LLM Prompt', desc: 'ChatGPT, Claude, Gemini, Llama', color: 'from-green-500 to-emerald-500' },
-                ].map(({ type, icon, title, desc, color }) => (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                {Object.entries(TYPE_META).map(([type, { icon, title, desc, color }]) => (
                   <button
                     key={type}
                     onClick={() => setPromptType(type)}
@@ -1523,11 +1950,11 @@
                     </div>
                     <div className="p-4 space-y-3">
                       <p className="text-sm text-gray-600 dark:text-gray-400">Paste a previously exported JSON prompt. Select the prompt type first, then import to populate the form.</p>
-                      <div className="flex gap-2">
-                        {['image','video','llm'].map(t => (
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(TYPE_META).map(([t, meta]) => (
                           <button key={t} onClick={() => setPromptType(t)}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${promptType === t ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200'}`}>
-                            {t === 'image' ? '🖼️ Image' : t === 'video' ? '🎬 Video' : '🤖 LLM'}
+                            className={`flex-1 min-w-[80px] py-2 rounded-lg text-sm font-medium border-2 transition-colors ${promptType === t ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200'}`}>
+                            {meta.icon} {meta.shortTitle}
                           </button>
                         ))}
                       </div>
@@ -1577,7 +2004,7 @@
                 </button>
                 <div>
                   <h1 className="text-xl font-bold">
-                    {promptType === 'image' ? '🖼️ Image' : promptType === 'video' ? '🎬 Video' : '🤖 LLM'} Prompt Builder
+                    {TYPE_META[promptType]?.icon} {TYPE_META[promptType]?.shortTitle} Prompt Builder
                   </h1>
                 </div>
               </div>
@@ -1760,7 +2187,7 @@
                   </div>
 
                   <p className="text-center text-sm text-gray-600 dark:text-gray-400">
-                    Paste this {outputMode === 'json' ? 'JSON' : 'prompt'} into {promptType === 'image' ? 'Gemini, ChatGPT, or your image generator' : promptType === 'video' ? 'Veo, Sora, Runway, or your video generator' : 'ChatGPT, Claude, or your LLM'}.
+                    Paste this {outputMode === 'json' ? 'JSON' : 'prompt'} into {TYPE_META[promptType]?.pasteTarget || 'your AI tool'}.
                   </p>
                 </div>
               </div>

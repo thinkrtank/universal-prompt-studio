@@ -1,6 +1,6 @@
 # Universal Prompt Studio
 
-A browser-based prompt engineering tool for building structured prompts for AI image generators, video generators, and LLMs.
+A browser-based prompt engineering tool for building structured prompts across five modes: Image, Video, LLM, Dev, and Marketing.
 
 **Zero dependencies. No build step. Just open the HTML file.**
 
@@ -20,11 +20,13 @@ A browser-based prompt engineering tool for building structured prompts for AI i
 
 ## What It Does
 
-Universal Prompt Studio provides a guided, form-based interface for constructing detailed prompts across three modes:
+Universal Prompt Studio provides a guided, form-based interface for constructing detailed prompts across five modes:
 
 - **Image Prompt Builder** — For Gemini, Flux, Midjourney, DALL-E, Stable Diffusion. Covers subject, scene, camera settings, lighting, composition, style, text rendering, and advanced parameters like samplers and ControlNet hints.
 - **Video Prompt Builder** — For Veo 3, Sora, Runway, Kling, Hailuo. Extends image prompts with motion, audio, duration, and transition controls.
 - **LLM Prompt Builder** — For ChatGPT, Claude, Gemini, Llama. Covers role/persona, task definition, context, output format, behavior frameworks (ROSES, CO-STAR, PTCF, etc.), memory, citation, iteration, and safety guardrails. Includes an industry skills picker with 25+ domains.
+- **Dev Prompt Builder** — For code generation, debugging, refactoring, and architecture tasks. Covers language/framework selection, code context, constraints, testing requirements, and output format preferences.
+- **Marketing Prompt Builder** — For ad copy, social media, email campaigns, and brand content. Covers audience targeting, tone/voice, platform constraints, CTAs, and campaign objectives.
 - **Chain Builder** — Build multi-step prompt pipelines where each step's output feeds the next. Add translate steps to push to 23+ platform targets (Canva, Figma, GitHub, Vercel, n8n, etc.).
 
 ## Quick Start
