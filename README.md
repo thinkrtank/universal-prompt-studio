@@ -2,7 +2,9 @@
 
 A browser-based prompt engineering studio. Twelve guided builders turn plain-English ideas into structured, model-ready prompts — for image and video generation, LLM chats, coding, marketing, frontend design, project management, agent loops, audio, and multi-agent systems.
 
-**Zero dependencies. No build step. Just open the HTML file.**
+**No installation or build step for the browser app. Open the HTML file with an internet connection.**
+
+Optional [MCP agent access](mcp/README.md) supports agents on your PC or Raspberry Pi over your local network.
 
 ![HTML5](https://img.shields.io/badge/HTML5-Single_File-orange) ![React](https://img.shields.io/badge/React-18-blue) ![Tailwind](https://img.shields.io/badge/Tailwind_CSS-3-38bdf8) ![License](https://img.shields.io/badge/License-MIT-green)
 
@@ -42,7 +44,7 @@ That's it. Everything runs client-side in your browser — no server, no account
 - **Agent Loop Prompt Builder** — For "loop engineering" (the Ralph technique): running coding agents in continuous loops with fresh context per iteration. Covers loop harness styles, iteration contracts, file-based state (plan file, AGENTS.md, blockers), verifiable stop conditions, anti-reward-hacking verification gates, budgets and stall detection, and sandbox isolation. Built from July-2026 practitioner research — including the honest caveats.
 - **Audio Prompt Builder** — For Suno, Udio (music), ElevenLabs / TTS (voice), and sound design. Covers genre, mood, tempo, instruments, lyrics, voice style, and production notes.
 - **Agent Prompt Builder** — For tool-use and multi-agent systems (Claude Agent SDK, MCP, LangGraph). Covers objective, tool surface, reasoning loop, memory strategy, guardrails, and output.
-- **Chain Builder** — Build multi-step prompt pipelines where each step's output feeds the next. Add translate steps to push to 23+ platform targets (Canva, Figma, GitHub, Vercel, n8n, etc.).
+- **Chain Builder** — Build multi-step prompt pipelines where each step's output feeds the next. Add translate steps to describe adaptations for 23+ platform targets (Canva, Figma, GitHub, Vercel, n8n, etc.).
 
 ## Features
 
@@ -69,7 +71,22 @@ That's it. Everything runs client-side in your browser — no server, no account
 - **Babel Standalone** (in-browser JSX compilation)
 - **localStorage** for persistence
 
-No npm, no webpack, no node_modules. The entire app is a single self-contained HTML file.
+No npm, no webpack, no node_modules. The browser app is a single HTML file that loads React, Babel, and Tailwind from CDNs. React and Babel use pinned versions and integrity hashes; Tailwind Play CDN remains an external dependency. The optional MCP service uses Node.js and pinned npm dependencies.
+
+## Reliability and agent access update
+
+- Validates imported prompts, template libraries, recovery records, and saved chains before using them.
+- Rejects unsafe property paths and malformed control values; limits imports to 1 MiB.
+- Generates JSON and plain text from one shared core, including sentinel instructions and imported intent. LLM plain text now uses the same complete field-by-field format as other builders.
+- Uses each template's own schema for previews, so hidden fields stay excluded.
+- Keeps reset, restore, save, and autosave state consistent, and updates deletion state only after storage succeeds.
+- Makes builder controls responsive on small screens and supports Escape in chain export dialogs.
+- Prevents broken chain dependencies and duplicate output labels; explains that chains are instructions rather than live integrations.
+- Adds five optional MCP tools with stdio and authenticated Streamable HTTP transports. See [PC/Pi setup and tool usage](mcp/README.md).
+
+Run `npm ci --ignore-scripts` and `npm test` to check the shared core and both MCP transports. No npm installation is needed for normal browser use.
+
+The studio does not call AI models. Model names and presets are editable guidance, not guarantees of a provider's current API support. Browser templates remain local to that browser and origin; back them up with **Export all** before moving between file URLs, localhost, or another machine. Offline packaging, full dialog focus trapping, and shared template storage are future improvements.
 
 ## Browser Support
 

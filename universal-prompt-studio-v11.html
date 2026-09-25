@@ -4,11 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Universal Prompt Studio</title>
-  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.26.9/babel.min.js" crossorigin="anonymous"></script>
+  <link rel="icon" href="data:,">
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.9/babel.min.js" integrity="sha384-pKNXKj7jF9BNMkQyGWg5YLfoPyqBa/gf7wjTSoTGQlwxbZB+sabJuKyOHR6JQvTd" crossorigin="anonymous"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- TODO: For production use, add integrity= attributes (SRI hashes) for the pinned CDN scripts above. -->
+  <!-- Tailwind Play CDN remains a network dependency; React and Babel above are pinned with SRI. -->
   <script>tailwind.config = { darkMode: 'class' }</script>
   <style>
     body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -25,11 +26,10 @@
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root"><p style="padding:2rem">Loading Universal Prompt Studio… If this message remains, check your internet connection and access to unpkg.com and cdn.tailwindcss.com.</p></div>
+  <noscript>Enable JavaScript to use Universal Prompt Studio.</noscript>
   
-  <script type="text/babel">
-    const { useState, useEffect, useRef, useMemo, useCallback } = React;
-
+  <script id="prompt-studio-core">
     // === SCHEMA DEFINITIONS ===
     
     const MEDIUM_AESTHETICS = {
@@ -859,7 +859,7 @@
       'best_fit': '\u2014 Best Fit \u2014',
     };
     const SENTINEL_OUTPUT = { 'ask_me': '[Ask me about this]', 'best_fit': '[Pick the best fit]' };
-    const resolveSentinel = (v) => SENTINEL_OUTPUT[v] || v;
+    const resolveSentinel = (v) => Object.prototype.hasOwnProperty.call(SENTINEL_OUTPUT, v) ? SENTINEL_OUTPUT[v] : v;
 
     const TYPE_META = {
       image:     { icon: '🖼️', title: 'Image Prompt', shortTitle: 'Image', desc: 'Nano Banana 2, GPT Image 2, Midjourney V8, FLUX.2, SD', color: 'from-pink-500 to-rose-500', pasteTarget: 'Gemini, ChatGPT, or your image generator' },
@@ -1796,6 +1796,134 @@
       },
     };
 
+
+    // Pure, shared API. The optional MCP server loads only this owned script block.
+    const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+    const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+    const isPromptType = type => typeof type === 'string' && hasOwn(SCHEMAS, type);
+    const isSafeKey = key => !key.split('.').some(part => ['__proto__', 'constructor', 'prototype'].includes(part));
+    const validateFormData = (type, data) => {
+      if (!isPromptType(type)) throw new Error('Unknown builder type');
+      if (!isRecord(data)) throw new Error('Prompt data must be an object with flat field keys');
+      const clean = {};
+      for (const [key, raw] of Object.entries(data)) {
+        if (!isSafeKey(key)) throw new Error('Unsafe field key');
+        const cfg = hasOwn(SCHEMAS[type], key) ? SCHEMAS[type][key] : key === 'user_intent' ? { type: 'textarea' } : null;
+        if (!cfg && key !== '_industries_selected') throw new Error(`Unknown field: ${key}`);
+        if (raw === null || raw === undefined) continue;
+        let value = raw;
+        if (typeof value === 'string') {
+          const sentinel = Object.entries(SENTINEL_OUTPUT).find(([, output]) => output === value);
+          if (sentinel) value = sentinel[0];
+        }
+        const fieldType = cfg?.type || 'multiselect';
+        const arrayType = ['multiselect', 'medium_aesthetics', 'industry_skills_picker'].includes(fieldType);
+        const valid = arrayType ? Array.isArray(value) && value.every(item => typeof item === 'string')
+          : fieldType === 'checkbox' ? typeof value === 'boolean'
+          : fieldType === 'number' ? value === '' || (typeof value === 'number' && Number.isFinite(value))
+          : typeof value === 'string';
+        if (!valid) throw new Error(`Invalid value type for ${key}`);
+        clean[key] = Array.isArray(value) ? [...value] : value;
+      }
+      return clean;
+    };
+    const defaultFormData = type => {
+      if (!isPromptType(type)) throw new Error('Unknown builder type');
+      return Object.fromEntries(Object.entries(SCHEMAS[type]).filter(([, cfg]) => cfg.default !== undefined)
+        .map(([key, cfg]) => [key, Array.isArray(cfg.default) ? [...cfg.default] : cfg.default]));
+    };
+    const buildPromptObject = (type, data) => {
+      const clean = validateFormData(type, data);
+      const result = {};
+      for (const [key, value] of Object.entries(clean)) {
+        if (key.startsWith('_') || value === '' || (Array.isArray(value) && !value.length)) continue;
+        const cfg = SCHEMAS[type][key];
+        if (cfg?.condition && clean[cfg.condition] !== true) continue;
+        const parts = key.split('.');
+        let target = result;
+        for (const part of parts.slice(0, -1)) {
+          if (!hasOwn(target, part)) target[part] = {};
+          if (!isRecord(target[part])) target[part] = { _value: target[part] };
+          target = target[part];
+        }
+        target[parts.at(-1)] = typeof value === 'string' ? resolveSentinel(value) : value;
+      }
+      return result;
+    };
+    const promptPlainText = object => {
+      const lines = [];
+      const walk = (obj, prefix = '') => Object.entries(obj).forEach(([key, value]) => {
+        const path = prefix ? `${prefix} › ${key}` : key;
+        if (isRecord(value)) walk(value, path);
+        else lines.push(`${path.replace(/_/g, ' ')}: ${Array.isArray(value) ? value.join(', ') : value}`);
+      });
+      walk(object);
+      return lines.join('\n');
+    };
+    const importPromptData = (type, object) => {
+      if (!isPromptType(type) || !isRecord(object)) throw new Error('Expected a prompt JSON object');
+      const flat = {};
+      const walk = (obj, prefix = '', depth = 0) => {
+        if (depth > 20) throw new Error('JSON is nested too deeply');
+        for (const [key, value] of Object.entries(obj)) {
+          const path = prefix ? `${prefix}.${key}` : key;
+          if (!isSafeKey(path)) throw new Error('Unsafe field key');
+          if (hasOwn(SCHEMAS[type], path) || path === 'user_intent') flat[path] = value;
+          else if (isRecord(value)) walk(value, path, depth + 1);
+        }
+      };
+      walk(object);
+      if (!Object.keys(flat).length) throw new Error('No matching fields for this builder');
+      return validateFormData(type, flat);
+    };
+    const validTemplate = template => {
+      try { return isRecord(template) && isPromptType(template.type) && !!validateFormData(template.type, template.data); }
+      catch { return false; }
+    };
+    const cleanTemplateLibrary = library => isRecord(library)
+      ? Object.fromEntries(Object.entries(library).filter(([name, tpl]) => isSafeKey(name) && validTemplate(tpl))) : {};
+    const validAutosave = (saved, now = Date.now()) => validTemplate(saved) && Number.isFinite(saved.timestamp)
+      && now >= saved.timestamp && now - saved.timestamp < 86400000;
+    const validateChainSteps = steps => {
+      if (!Array.isArray(steps) || !steps.length || steps.length > 100) return null;
+      const ids = new Set(), labels = new Set();
+      const clean = [];
+      for (const step of steps) {
+        if (!isRecord(step) || !Number.isSafeInteger(step.id) || step.id < 1 || ids.has(step.id)) return null;
+        if (!['standard', 'translate'].includes(step.type)) return null;
+        const strings = ['name', 'role', 'task', 'inputData', 'outputLabel', 'customTarget'];
+        if (strings.some(key => step[key] !== undefined && typeof step[key] !== 'string')) return null;
+        const source = step.inputSource ?? 'manual';
+        if (source !== 'manual' && ![...ids].some(id => String(id) === String(source))) return null;
+        if (step.targets !== undefined && (!Array.isArray(step.targets) || !step.targets.every(t => typeof t === 'string'))) return null;
+        const label = step.outputLabel === undefined ? `step_${step.id}_output` : step.outputLabel.trim();
+        if (!label || labels.has(label)) return null;
+        labels.add(label); ids.add(step.id);
+        clean.push({ id: step.id, name: step.name || `Step ${step.id}`, type: step.type,
+          role: step.role || '', task: step.task || '', inputSource: source, inputData: step.inputData || '',
+          outputLabel: label, targets: step.targets || [], customTarget: step.customTarget || '' });
+      }
+      return clean;
+    };
+    const buildChainObject = steps => {
+      const clean = validateChainSteps(steps);
+      if (!clean) throw new Error('Invalid chain: use unique IDs/output labels and inputs from earlier steps only');
+      return { chain: clean.map((step, i) => ({ step: i + 1, name: step.name, type: step.type,
+        ...(step.role ? { role: step.role } : {}), ...(step.task ? { task: step.task } : {}),
+        input_source: step.inputSource === 'manual' ? 'manual' : clean.find(s => String(s.id) === String(step.inputSource)).outputLabel,
+        ...(step.inputSource === 'manual' && step.inputData ? { input_data: step.inputData } : {}),
+        output_label: step.outputLabel,
+        ...(step.type === 'translate' ? { targets: [...step.targets, ...step.customTarget.split(',').map(t => t.trim()).filter(Boolean)] } : {})
+      })) };
+    };
+    globalThis.PromptStudioCore = { SCHEMAS, TYPE_META, SECTION_INFO, PRESETS, SELECT_SENTINELS, SENTINEL_OUTPUT,
+      isRecord, hasOwn, isPromptType, isSafeKey, validateFormData, defaultFormData, buildPromptObject,
+      promptPlainText, importPromptData, validTemplate, cleanTemplateLibrary, validAutosave, validateChainSteps, buildChainObject };
+
+  </script>
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
     // Safe clipboard utility with fallback for file:// protocol
     const safeClipboardWrite = async (text) => {
       try {
@@ -1914,26 +2042,6 @@
       }
     };
 
-    // Validate chain steps loaded from storage
-    const validateChainSteps = (steps) => {
-      if (!Array.isArray(steps) || steps.length === 0) return null;
-      const requiredKeys = ['id', 'name', 'type'];
-      const valid = steps.every(s => s && typeof s === 'object' && requiredKeys.every(k => k in s));
-      if (!valid) return null;
-      return steps.map(s => ({
-        id: s.id,
-        name: s.name || `Step ${s.id}`,
-        type: s.type || 'standard',
-        role: s.role || '',
-        task: s.task || '',
-        inputSource: s.inputSource || 'manual',
-        inputData: s.inputData || '',
-        outputLabel: s.outputLabel || `step_${s.id}_output`,
-        targets: Array.isArray(s.targets) ? s.targets : [],
-        customTarget: s.customTarget || '',
-      }));
-    };
-
     const CHAIN_TARGETS = [
       'Canva', 'Figma', 'Google Stitch', 'Adobe XD', 'Framer', 'Webflow', 'Sketch', 'Affinity Designer',
       'GitHub', 'Vercel', 'Netlify', 'Supabase', 'Firebase', 'WordPress',
@@ -1951,19 +2059,25 @@
 
       const [steps, setSteps] = useState([emptyStep(1), emptyStep(2)]);
       const [showExport, setShowExport] = useState(false);
+      const closeExport = useCallback(() => setShowExport(false), []);
+      useEscapeKey(showExport, closeExport);
       const [chainName, setChainName] = useState('');
       const [savedChains, setSavedChains] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('promptStudioChains') || '{}'); } catch { return {}; }
+        try { const stored = JSON.parse(localStorage.getItem('promptStudioChains') || '{}'); return isRecord(stored) ? Object.fromEntries(Object.entries(stored).filter(([name, chain]) => isSafeKey(name) && isRecord(chain) && validateChainSteps(chain.steps))) : {}; } catch { return {}; }
       });
 
       const nextId = () => steps.length === 0 ? 1 : Math.max(...steps.map(s => s.id)) + 1;
 
       const addStep = (type = 'standard') => {
+        if (steps.length >= 100) { showToast('A chain can contain up to 100 steps.', 'error'); return; }
         const id = nextId();
         setSteps(prev => [...prev, { ...emptyStep(id), type, name: type === 'translate' ? 'Translate' : `Step ${id}` }]);
       };
 
-      const removeStep = (id) => setSteps(prev => prev.filter(s => s.id !== id));
+      const removeStep = (id) => {
+        if (steps.some(s => String(s.inputSource) === String(id))) { showToast('Change dependent inputs before removing this step.', 'error'); return; }
+        setSteps(prev => prev.filter(s => s.id !== id));
+      };
 
       const updateStep = (id, field, value) =>
         setSteps(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
@@ -1977,42 +2091,22 @@
       };
 
       const moveStep = (id, dir) => {
-        setSteps(prev => {
-          const idx = prev.findIndex(s => s.id === id);
-          const next = [...prev];
-          const swap = idx + dir;
-          if (swap < 0 || swap >= next.length) return prev;
-          [next[idx], next[swap]] = [next[swap], next[idx]];
-          return next;
-        });
+        const idx = steps.findIndex(s => s.id === id);
+        const swap = idx + dir;
+        if (swap < 0 || swap >= steps.length) return;
+        const next = [...steps];
+        [next[idx], next[swap]] = [next[swap], next[idx]];
+        if (!validateChainSteps(next)) { showToast('Move blocked: inputs must reference earlier steps and output labels must be unique.', 'error'); return; }
+        setSteps(next);
       };
 
-      const buildChainJSON = () => {
-        const chain = steps.map((s, i) => {
-          const obj = {
-            step: i + 1,
-            name: s.name,
-            type: s.type,
-            role: s.role || undefined,
-            task: s.task || undefined,
-            input_source: s.inputSource === 'manual' ? 'manual' : steps.find(x => String(x.id) === String(s.inputSource))?.outputLabel || s.inputSource,
-            input_data: s.inputSource === 'manual' && s.inputData ? s.inputData : undefined,
-            output_label: s.outputLabel,
-          };
-          if (s.type === 'translate') {
-            const allTargets = [...s.targets, ...(s.customTarget ? s.customTarget.split(',').map(t => t.trim()).filter(Boolean) : [])];
-            obj.targets = allTargets;
-          }
-          // strip undefined
-          Object.keys(obj).forEach(k => obj[k] === undefined && delete obj[k]);
-          return obj;
-        });
-        return JSON.stringify({ chain }, null, 2);
-      };
+      const buildChainJSON = () => JSON.stringify(buildChainObject(steps), null, 2);
 
       const saveChain = () => {
         if (!chainName.trim()) return;
-        if (savedChains[chainName] && !confirm(`A chain named "${chainName}" already exists. Overwrite it?`)) return;
+        if (!isSafeKey(chainName)) { showToast('Choose a different chain name.', 'error'); return; }
+        if (!validateChainSteps(steps)) { showToast('Fix invalid inputs or duplicate output labels before saving.', 'error'); return; }
+        if (hasOwn(savedChains, chainName) && !confirm(`A chain named "${chainName}" already exists. Overwrite it?`)) return;
         const updated = { ...savedChains, [chainName]: { steps, savedAt: new Date().toISOString() } };
         if (safeLocalStorageSet('promptStudioChains', updated)) {
           setSavedChains(updated);
@@ -2041,7 +2135,7 @@
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
           {/* Header */}
           <div className="bg-gradient-to-r from-orange-500 to-pink-600 text-white p-4">
-            <div className="max-w-5xl mx-auto flex items-center justify-between">
+            <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-4">
                 <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-lg">← Back</button>
                 <div>
@@ -2051,7 +2145,7 @@
               </div>
               <div className="flex items-center gap-2">
                 <ThemeToggle mode={themeMode} setMode={setThemeMode} />
-                <button onClick={() => setShowExport(true)}
+                <button onClick={() => { if (validateChainSteps(steps)) setShowExport(true); else showToast('Each input must reference an earlier step, with unique output labels.', 'error'); }}
                   className="px-4 py-2 bg-white text-orange-600 rounded-lg font-semibold hover:bg-orange-50">
                   Export Chain →
                 </button>
@@ -2065,8 +2159,8 @@
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 <strong>How it works:</strong> Build sequential steps where each step's output feeds the next.
                 Use <span className="text-blue-600 font-medium">Standard</span> steps for planning and building,
-                then add a <span className="text-orange-600 font-medium">Translate</span> step to push the final
-                build to multiple target platforms simultaneously.
+                then add a <span className="text-orange-600 font-medium">Translate</span> step to describe how to adapt the final
+                output for multiple target platforms. Exported chains are instructions; this app does not execute steps or publish to those platforms.
               </p>
             </div>
 
@@ -2197,7 +2291,7 @@
                       <div className="flex gap-2">
                         <button onClick={() => { const valid = validateChainSteps(chain.steps); if (valid) setSteps(valid); else showToast('This saved chain has invalid data and cannot be loaded.', 'error'); }}
                           className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">Load</button>
-                        <button onClick={() => { if (!confirm(`Delete chain "${name}"?`)) return; const c = {...savedChains}; delete c[name]; setSavedChains(c); safeLocalStorageSet('promptStudioChains', c); }}
+                        <button onClick={() => { if (!confirm(`Delete chain "${name}"?`)) return; const c = {...savedChains}; delete c[name]; if (safeLocalStorageSet('promptStudioChains', c)) setSavedChains(c); }}
                           className="px-3 py-1 bg-red-400/60 text-white rounded text-sm hover:bg-red-500">Delete</button>
                       </div>
                     </div>
@@ -2210,8 +2304,8 @@
           {/* Export Modal */}
           {showExport && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="export-chain-title" onKeyDown={e => e.key === 'Escape' && setShowExport(false)}>
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
-                <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex items-center justify-between">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex flex-wrap items-center justify-between gap-2">
                   <h3 id="export-chain-title" className="text-xl font-bold dark:text-white">🔗 Exported Chain JSON</h3>
                   <button onClick={() => setShowExport(false)} className="text-2xl hover:text-red-500 dark:text-gray-300" aria-label="Close">×</button>
                 </div>
@@ -2224,7 +2318,7 @@
                   <div className="flex gap-2">
                     <input type="text" value={chainName} onChange={e => setChainName(e.target.value)}
                       placeholder="Chain name to save..."
-                      className="flex-1 p-2 border rounded-lg" />
+                      className="w-full sm:w-auto sm:flex-1 min-w-0 p-2 border rounded-lg" />
                     <button onClick={saveChain} disabled={!chainName.trim()}
                       className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
                       💾 Save Chain
@@ -2259,7 +2353,7 @@
       const [formData, setFormData] = useState({});
       const [savedTemplates, setSavedTemplates] = useState(() => {
         try {
-          return JSON.parse(localStorage.getItem('promptStudioTemplates') || '{}');
+          return cleanTemplateLibrary(JSON.parse(localStorage.getItem('promptStudioTemplates') || '{}'));
         } catch { return {}; }
       });
       const [templateName, setTemplateName] = useState('');
@@ -2270,7 +2364,7 @@
       const [showImport, setShowImport] = useState(false);
       const [importText, setImportText] = useState('');
       const [importError, setImportError] = useState('');
-      const [autoSaveData] = useState(() => { try { const s = JSON.parse(localStorage.getItem('promptStudioAutosave')); return s && s.type && s.data && typeof s.data === 'object' && Date.now() - s.timestamp < 86400000 ? s : null; } catch(e) { return null; } });
+      const [autoSaveData, setAutoSaveData] = useState(() => { try { const s = JSON.parse(localStorage.getItem('promptStudioAutosave')); return validAutosave(s) ? s : null; } catch(e) { return null; } });
       const [presetKey, setPresetKey] = useState(0); // for resetting preset dropdown
       const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
       const [fieldSearch, setFieldSearch] = useState(''); // filter fields across all sections
@@ -2285,7 +2379,9 @@
         setAutoSaveStatus('');
         const timer = setTimeout(() => {
           try {
-            localStorage.setItem('promptStudioAutosave', JSON.stringify({ type: promptType, data: formData, timestamp: Date.now() }));
+            const draft = { type: promptType, data: formData, timestamp: Date.now() };
+            localStorage.setItem('promptStudioAutosave', JSON.stringify(draft));
+            setAutoSaveData(draft);
             setAutoSaveStatus('Auto-saved');
             setTimeout(() => setAutoSaveStatus(''), 3000);
           } catch (e) { /* ignore quota errors for autosave */ }
@@ -2365,18 +2461,19 @@
       const loadTemplate = useCallback((name) => {
         const template = savedTemplates[name];
         if (template) {
-          isLoadingTemplateRef.current = true;
-          setFormData(template.data);
+          isLoadingTemplateRef.current = template.type !== promptType;
+          setFormData(validateFormData(template.type, template.data));
           setPromptType(template.type);
           setCurrentSection(0);
           setShowOutput(false);
           setHasUnsavedChanges(false);
         }
-      }, [savedTemplates]);
+      }, [savedTemplates, promptType]);
 
       const saveTemplate = useCallback(async () => {
         if (!templateName.trim()) return;
-        if (savedTemplates[templateName] && !(await confirmDialog(`A template named "${templateName}" already exists. Overwrite it?`, { confirmLabel: 'Overwrite' }))) return;
+        if (!isSafeKey(templateName)) { showToast('Choose a different template name.', 'error'); return; }
+        if (hasOwn(savedTemplates, templateName) && !(await confirmDialog(`A template named "${templateName}" already exists. Overwrite it?`, { confirmLabel: 'Overwrite' }))) return;
         const newTemplates = {
           ...savedTemplates,
           [templateName]: { type: promptType, data: formData, savedAt: new Date().toISOString() }
@@ -2385,6 +2482,7 @@
           setSavedTemplates(newTemplates);
           setTemplateName('');
           setHasUnsavedChanges(false);
+          setAutoSaveData(null);
           try { localStorage.removeItem('promptStudioAutosave'); } catch(e) {}
           showToast('Template saved!');
         }
@@ -2394,8 +2492,7 @@
         if (!(await confirmDialog(`Delete template "${name}"?`, { confirmLabel: 'Delete', danger: true }))) return;
         const newTemplates = { ...savedTemplates };
         delete newTemplates[name];
-        setSavedTemplates(newTemplates);
-        safeLocalStorageSet('promptStudioTemplates', newTemplates);
+        if (safeLocalStorageSet('promptStudioTemplates', newTemplates)) setSavedTemplates(newTemplates);
       }, [savedTemplates, confirmDialog]);
 
       // Export the entire template library to a downloadable JSON file (backup/share)
@@ -2416,6 +2513,7 @@
       // Import a template-library file, merging into the current library (suffixing name collisions)
       const importTemplatesFromFile = useCallback((file) => {
         if (!file) return;
+        if (file.size > 1024 * 1024) { showToast('Template files must be 1 MiB or smaller.', 'error'); return; }
         const reader = new FileReader();
         reader.onload = () => {
           try {
@@ -2425,9 +2523,9 @@
             const merged = { ...savedTemplates };
             let added = 0;
             Object.entries(incoming).forEach(([name, tpl]) => {
-              if (!tpl || typeof tpl !== 'object' || !tpl.type || !tpl.data) return;
+              if (!isSafeKey(name) || !validTemplate(tpl)) return;
               let key = name;
-              while (merged[key]) key = `${key} (imported)`;
+              while (hasOwn(merged, key)) key = `${key} (imported)`;
               merged[key] = tpl;
               added++;
             });
@@ -2440,6 +2538,7 @@
             showToast('Could not read that file — invalid JSON', 'error');
           }
         };
+        reader.onerror = () => showToast('Could not read that template file.', 'error');
         reader.readAsText(file);
       }, [savedTemplates]);
 
@@ -2453,177 +2552,34 @@
           if (config.default !== undefined) defaults[key] = config.default;
         });
         setFormData(defaults);
-        setHasUnsavedChanges(false);
+        setHasUnsavedChanges(true);
+        setAutoSaveData(null);
+        try { localStorage.removeItem('promptStudioAutosave'); } catch {}
         showToast('Form reset to defaults');
       }, [promptType, confirmDialog]);
 
-      const buildNestedJSON = useCallback((data) => {
-        const schema = SCHEMAS[promptType] || {};
-        const result = {};
-        Object.entries(data).forEach(([key, value]) => {
-          if (value === '' || value === undefined || value === null) return;
-          if (Array.isArray(value) && value.length === 0) return;
-          if (key.startsWith('_')) return; // skip internal keys like _industries_selected
-          // Skip fields hidden by an unmet condition so they don't leak into output
-          const cfg = schema[key];
-          if (cfg && cfg.condition && !data[cfg.condition]) return;
-          const resolved = typeof value === 'string' ? resolveSentinel(value) : value;
-          const keys = key.split('.');
-          let current = result;
-          for (let i = 0; i < keys.length - 1; i++) {
-            // Guard: if existing value is not an object, wrap it to avoid conflict
-            if (current[keys[i]] !== undefined && (typeof current[keys[i]] !== 'object' || Array.isArray(current[keys[i]]))) {
-              current[keys[i]] = { _value: current[keys[i]] };
-            }
-            current[keys[i]] = current[keys[i]] || {};
-            current = current[keys[i]];
-          }
-          current[keys[keys.length - 1]] = resolved;
-        });
-        return JSON.stringify(result, null, 2);
-      }, [promptType]);
-
+      const buildNestedJSON = useCallback((data, type = promptType) =>
+        JSON.stringify(type ? buildPromptObject(type, data) : {}, null, 2), [promptType]);
       const generatedJSON = useMemo(() => buildNestedJSON(formData), [formData, buildNestedJSON]);
-
-      const jsonToPlainText = useCallback((jsonStr) => {
-        try {
-          const obj = JSON.parse(jsonStr);
-          const lines = [];
-          const flatten = (o, prefix = '') => {
-            Object.entries(o).forEach(([k, v]) => {
-              const label = (prefix ? `${prefix} › ${k}` : k).replace(/_/g, ' ');
-              if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, prefix ? `${prefix} › ${k}` : k);
-              else if (v !== '' && v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0))
-                lines.push(`${label}: ${Array.isArray(v) ? v.join(', ') : v}`);
-            });
-          };
-          flatten(obj);
-          return lines.join('\n').trim();
-        } catch { return jsonStr; }
-      }, []);
-
-      const generatedPlainText = useMemo(() => {
-        const d = formData;
-        const lines = [];
-        const add = (label, val) => { if (val && val !== '' && !(Array.isArray(val) && val.length === 0)) lines.push(`${label}: ${Array.isArray(val) ? val.join(', ') : val}`); };
-        const head = (title) => { lines.push(''); lines.push(`=== ${title.toUpperCase()} ===`); };
-
-        if (promptType === 'llm') {
-          head('Role & Persona');
-          add('Persona', d['role.persona']); add('Expertise', d['role.expertise']);
-          add('Tone', d['role.tone']); add('Experience Level', d['role.seniority']); add('Point of View', d['role.pov']);
-
-          const skills = [...(Array.isArray(d['skills.picker']) ? d['skills.picker'] : []), ...(d['skills.custom'] ? d['skills.custom'].split(',').map(s=>s.trim()) : [])].filter(Boolean);
-          if (skills.length) { head('Skills'); lines.push(`Apply the following skills: ${skills.join(', ')}.`); }
-
-          head('Task');
-          add('Instruction', d['task.instruction']); add('Goal', d['task.goal']);
-          add('Subtasks', d['task.subtasks']); add('Constraints', d['task.constraints']); add('Urgency', d['task.deadline_pressure']);
-
-          head('Context');
-          add('Background', d['context.background']); add('Target Audience', d['context.audience']);
-          add('Audience Expertise', d['context.audience_expertise']); add('Domain', d['context.domain']);
-          add('Target Integrations', d['context.target_integrations']);
-          add('Platform', d['context.platform']); add('Language', d['context.language']);
-
-          if (d['input.data'] || d['input.format'] || d['input.quality']) {
-            head('Input');
-            add('Data', d['input.data']); add('Format', d['input.format']); add('Data Quality', d['input.quality']);
-          }
-
-          head('Output');
-          add('Format', d['output.format']); add('Length', d['output.length']);
-          add('Language Style', d['output.language_style']); add('Header Usage', d['output.header_usage']);
-          add('Code Comments', d['output.code_comments']); add('Structure', d['output.structure']);
-
-          if (d['examples.few_shot'] || d['examples.anti_examples']) {
-            head('Examples');
-            add('Few-Shot Examples', d['examples.few_shot']); add('Anti-Examples (avoid)', d['examples.anti_examples']);
-          }
-
-          head('Behavior');
-          add('Reasoning Mode', d['behavior.reasoning_mode']); add('Framework', d['behavior.framework']);
-          add('Prioritize', d['behavior.priority']); add('Uncertainty Handling', d['behavior.uncertainty_handling']);
-          add('Forbidden Outputs', d['behavior.forbidden_outputs']);
-          if (d['behavior.hallucination_guard']) lines.push('Flag any low-confidence claims explicitly.');
-
-          if (d['memory.key_facts'] || d['memory.session_state'] || d['memory.context_window_hint']) {
-            head('Memory & Context');
-            add('Key Facts', d['memory.key_facts']); add('Session State', d['memory.session_state']);
-            add('Long Context Strategy', d['memory.context_window_hint']);
-            if (d['memory.persona_persistence']) lines.push('Maintain persona consistently across all turns.');
-          }
-
-          if (d['citation.style'] && d['citation.style'] !== 'none') {
-            head('Citation');
-            add('Citation Style', d['citation.style']); add('Source Preferences', d['citation.source_preference']);
-            add('Confidence Labels', d['citation.confidence_labels']); add('URL Behavior', d['citation.url_behavior']);
-          }
-
-          if (d['iteration.mode'] && d['iteration.mode'] !== 'single_pass') {
-            head('Iteration');
-            add('Mode', d['iteration.mode']); add('Revision Trigger', d['iteration.revision_trigger']);
-            add('Feedback Style', d['iteration.feedback_style']); add('Max Cycles', d['iteration.max_cycles']);
-            if (d['iteration.version_label']) lines.push('Label each output with a version number (v1, v2...).');
-          }
-
-          if (d['safety.content_level'] || d['safety.disclaimer'] || (Array.isArray(d['safety.bias_awareness']) && d['safety.bias_awareness'].length)) {
-            head('Safety & Guardrails');
-            add('Content Level', d['safety.content_level']); add('Bias Checks', d['safety.bias_awareness']);
-            add('Disclaimer', d['safety.disclaimer']); add('PII Handling', d['safety.pii_handling']);
-            add('Edge Case Behavior', d['safety.edge_case_behavior']);
-          }
-
-          head('Advanced Reasoning');
-          if (d['advanced.chain_of_thought']) lines.push('Use chain-of-thought reasoning.');
-          if (d['advanced.step_by_step']) lines.push('Provide a step-by-step explanation.');
-          if (d['advanced.self_critique']) lines.push('Include self-critique and verification of your output.');
-          if (d['advanced.output_preview']) lines.push('Begin with a brief plan before producing the full output.');
-          add('Creativity Level', d['advanced.temperature_hint']);
-
-        } else {
-          // Non-LLM types: flatten nested JSON to readable lines
-          const nested = JSON.parse(buildNestedJSON(formData));
-          const flatten = (obj, prefix='') => {
-            Object.entries(obj).forEach(([k, v]) => {
-              const label = (prefix ? `${prefix} › ${k}` : k).replace(/_/g,' ');
-              if (typeof v === 'object' && !Array.isArray(v)) flatten(v, prefix ? `${prefix} › ${k}` : k);
-              else lines.push(`${label}: ${Array.isArray(v) ? v.join(', ') : v}`);
-            });
-          };
-          flatten(nested);
-        }
-
-        return lines.join('\n').trim();
-      }, [formData, promptType, buildNestedJSON]);
+      const jsonToPlainText = useCallback(json => promptPlainText(JSON.parse(json)), []);
+      const generatedPlainText = useMemo(() => jsonToPlainText(generatedJSON), [generatedJSON, jsonToPlainText]);
 
       const importJSON = () => {
         setImportError('');
         try {
+          if (importText.length > 1024 * 1024) throw new Error('Prompt JSON must be 1 MiB or smaller');
           const parsed = JSON.parse(importText);
           if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
             setImportError('Expected a JSON object at the top level.');
             return;
           }
-          const FORBIDDEN_KEYS = ['__proto__', 'constructor', 'prototype'];
-          const currentSchema = SCHEMAS[promptType];
-          const validKeys = new Set(Object.keys(currentSchema));
-          const flat = {};
-          const flattenObj = (obj, prefix='') => {
-            Object.entries(obj).forEach(([k, v]) => {
-              if (FORBIDDEN_KEYS.includes(k)) return; // reject prototype pollution
-              const fullKey = prefix ? `${prefix}.${k}` : k;
-              if (typeof v === 'object' && v !== null && !Array.isArray(v)) flattenObj(v, fullKey);
-              else if (validKeys.has(fullKey) || fullKey === 'user_intent') flat[fullKey] = v;
-            });
-          };
-          flattenObj(parsed);
+          const flat = importPromptData(promptType, parsed);
           setFormData(prev => ({ ...prev, ...flat }));
           setShowImport(false);
           setImportText('');
           setHasUnsavedChanges(true);
         } catch(e) {
-          setImportError('Invalid JSON — please check your input and try again.');
+          setImportError(e.message || 'Invalid JSON — please check your input and try again.');
         }
       };
 
@@ -2857,7 +2813,7 @@
                     📂 Import Existing JSON Prompt
                   </button>
                   {autoSaveData && (
-                    <button onClick={() => { isLoadingTemplateRef.current = true; setFormData(autoSaveData.data); setPromptType(autoSaveData.type); localStorage.removeItem('promptStudioAutosave'); showToast('Session restored!'); }}
+                    <button onClick={() => { isLoadingTemplateRef.current = true; setFormData(autoSaveData.data); setPromptType(autoSaveData.type); setHasUnsavedChanges(true); setAutoSaveData(null); showToast('Session restored!'); }}
                       className="px-5 py-2 bg-green-500/80 hover:bg-green-500 text-white rounded-lg border border-green-400/50 text-sm font-medium transition-colors">
                       🔄 Restore Last Session ({autoSaveData.type})
                     </button>
@@ -2951,7 +2907,7 @@
               {viewingTemplate && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="view-template-title" onKeyDown={e => e.key === 'Escape' && setViewingTemplate(null)}>
                   <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
-                    <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex items-center justify-between">
+                    <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <h3 id="view-template-title" className="text-lg font-bold dark:text-white">{viewingTemplate.name}</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-300">Type: {viewingTemplate.template.type} · Saved: {new Date(viewingTemplate.template.savedAt).toLocaleDateString()}</p>
@@ -2976,13 +2932,13 @@
                     </div>
                     <div className="overflow-auto max-h-[55vh] p-4">
                       <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm whitespace-pre-wrap">
-                        {templateViewMode === 'json' ? buildNestedJSON(viewingTemplate.template.data) : jsonToPlainText(buildNestedJSON(viewingTemplate.template.data))}
+                        {templateViewMode === 'json' ? buildNestedJSON(viewingTemplate.template.data, viewingTemplate.template.type) : jsonToPlainText(buildNestedJSON(viewingTemplate.template.data, viewingTemplate.template.type))}
                       </pre>
                     </div>
                     <div className="p-4 bg-gray-50 dark:bg-gray-700 border-t dark:border-gray-600 flex gap-2">
                       <button
                         onClick={async () => {
-                          const content = templateViewMode === 'json' ? buildNestedJSON(viewingTemplate.template.data) : jsonToPlainText(buildNestedJSON(viewingTemplate.template.data));
+                          const content = templateViewMode === 'json' ? buildNestedJSON(viewingTemplate.template.data, viewingTemplate.template.type) : jsonToPlainText(buildNestedJSON(viewingTemplate.template.data, viewingTemplate.template.type));
                           const ok = await safeClipboardWrite(content);
                           if (ok) showToast(`${templateViewMode === 'json' ? 'JSON' : 'Plain text'} copied to clipboard!`);
                         }}
@@ -3010,7 +2966,7 @@
               {showImport && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="home-import-title" onKeyDown={e => e.key === 'Escape' && (setShowImport(false), setImportText(''), setImportError(''))}>
                   <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
-                    <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex items-center justify-between">
+                    <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex flex-wrap items-center justify-between gap-2">
                       <h3 id="home-import-title" className="text-xl font-bold dark:text-white">📂 Import JSON Prompt</h3>
                       <button onClick={() => { setShowImport(false); setImportText(''); setImportError(''); }} className="text-2xl hover:text-red-500 dark:text-gray-300" aria-label="Close">×</button>
                     </div>
@@ -3065,7 +3021,7 @@
           {confirmModal}
           {/* Header */}
           <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4">
-            <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <div className="max-w-6xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div className="flex items-center gap-4">
                 <button
                   onClick={async () => { if (!hasUnsavedChanges || (await confirmDialog('You have unsaved changes. Leave anyway?', { confirmLabel: 'Leave' }))) { setPromptType(null); setHasUnsavedChanges(false); } }}
@@ -3079,7 +3035,7 @@
                   </h1>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {autoSaveStatus && <span className="text-xs text-white/60">{autoSaveStatus}</span>}
                 <ThemeToggle mode={themeMode} setMode={setThemeMode} />
                 <button
@@ -3109,10 +3065,14 @@
             </div>
           </div>
 
-          <div className="max-w-6xl mx-auto p-4 flex gap-4">
+          <div className="max-w-6xl mx-auto p-4 flex flex-col md:flex-row gap-4">
             {/* Sidebar */}
-            <div className="w-64 flex-shrink-0">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden sticky top-4">
+            <div className="w-full md:w-64 flex-shrink-0">
+              <select aria-label="Builder section" value={currentSection} onChange={e => { setCurrentSection(Number(e.target.value)); setFieldSearch(''); }}
+                className="md:hidden w-full p-3 rounded-lg border bg-white dark:bg-gray-800 dark:text-white">
+                {sections.map((key, idx) => <option key={key} value={idx}>{sectionInfo[key].icon} {sectionInfo[key].title}</option>)}
+              </select>
+              <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden sticky top-4">
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600 font-semibold text-gray-700 dark:text-gray-200">Sections</div>
                 {sections.map((key, idx) => (
                   <button
@@ -3133,9 +3093,9 @@
             </div>
 
             {/* Main Content */}
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 fade-in" key={searchActive ? '__search' : currentSectionKey}>
-                <div className="flex items-center justify-between gap-3 mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">{searchActive ? '🔍' : currentSectionInfo.icon}</span>
                     <div>
@@ -3220,8 +3180,8 @@
           {/* Output Modal */}
           {showOutput && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="output-modal-title" onKeyDown={e => e.key === 'Escape' && setShowOutput(false)}>
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
-                <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex items-center justify-between">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex flex-wrap items-center justify-between gap-2">
                   <h3 id="output-modal-title" className="text-xl font-bold dark:text-white">Generated Prompt</h3>
                   <div className="flex items-center gap-3">
                     {/* JSON / Text toggle */}
@@ -3251,13 +3211,13 @@
 
                 <div className="p-4 bg-gray-50 dark:bg-gray-700 border-t dark:border-gray-600 space-y-4">
                   {/* Save Template */}
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <input
                       type="text"
                       value={templateName}
                       onChange={e => setTemplateName(e.target.value)}
                       placeholder="Template name..."
-                      className="flex-1 p-2 border rounded-lg"
+                      className="w-full sm:w-auto sm:flex-1 min-w-0 p-2 border rounded-lg"
                     />
                     <button
                       onClick={saveTemplate}
@@ -3303,7 +3263,7 @@
           {showImport && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="builder-import-title" onKeyDown={e => e.key === 'Escape' && (setShowImport(false), setImportText(''), setImportError(''))}>
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
-                <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex items-center justify-between">
+                <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600 flex flex-wrap items-center justify-between gap-2">
                   <h3 id="builder-import-title" className="text-xl font-bold dark:text-white">📂 Import JSON Prompt</h3>
                   <button onClick={() => { setShowImport(false); setImportText(''); setImportError(''); }} className="text-2xl hover:text-red-500 dark:text-gray-300" aria-label="Close">×</button>
                 </div>

@@ -11,11 +11,12 @@ open universal-prompt-studio-v11.html    # macOS
 xdg-open universal-prompt-studio-v11.html # Linux
 ```
 
-No npm, no node_modules, no bundler. Everything is a single self-contained HTML file (~3360 lines).
+No npm or bundler is required for browser use. The optional MCP service and regression tests use Node.js 22+ and npm (`npm ci --ignore-scripts`, `npm test`). The browser UI and shared core remain in one HTML file; the optional MCP entrypoints and regression tests are separate.
 
 ## Architecture
 
-**Single-file React app** loaded via CDN:
+**Single-file React app** loaded via CDN. The plain `prompt-studio-core` script owns schemas, validation and output generation; `mcp/core.mjs` loads that same block in Node. Keep it free of DOM/React dependencies. The following Babel script contains the UI:
+
 - React 18.3.1 + ReactDOM (production UMD builds, pinned versions)
 - Babel Standalone 7.26.9 (in-browser JSX compilation via `<script type="text/babel">`)
 - Tailwind CSS 3 (CDN, configured with `darkMode: 'class'`)
@@ -61,15 +62,18 @@ The `SCHEMAS` object maps prompt types to their schemas. `SECTION_INFO` provides
 Schema keys use dot notation (`'subject.hair_color'`, `'meta.aspect_ratio'`). These are stored flat in `formData` state — **not** nested.
 
 ### Output Generation Pipeline
-`buildNestedJSON(formData)` (in `UniversalPromptStudio`, memoized on `promptType`) converts the flat dot-path `formData` into nested JSON, skipping empty values, internal `_`-prefixed keys, **and fields whose `condition` is currently unmet** (so hidden conditional fields don't leak into the output). Sentinel values like `'ask_me'` are resolved via `resolveSentinel()` (module scope). The result is memoized as `generatedJSON`. `jsonToPlainText(jsonStr)` flattens nested JSON back into `key › subkey: value` lines for the plain-text output mode. The UI toggles between these via `outputMode` (`'json'` | `'text'`).
+
+`buildPromptObject(type, data)` and `promptPlainText(object)` in the shared core are authoritative. Both MCP and the UI use them. Template previews must pass the saved template type. Use `validateFormData` on externally supplied flat data and `importPromptData` for nested prompt imports.
+
+The UI's memoized `buildNestedJSON(data, type)` wraps `buildPromptObject`. `generatedPlainText` flattens the same generated JSON rather than keeping a separate LLM field list. Both output modes therefore share sentinel resolution, hidden-field filtering, and validation. Browser import accepts nested or flat JSON; MCP accepts flat fields.
 
 ### localStorage Persistence
 - **Theme**: `promptStudioTheme` — `'light'` | `'dark'` | `'system'`
-- **Templates**: `promptStudioTemplates` — `{ [name]: { type, data, timestamp } }`
+- **Templates**: `promptStudioTemplates` — `{ [name]: { type, data, savedAt } }`
 - **Auto-save**: `promptStudioAutosave` — `{ type, data, timestamp }` (expires after 24h)
 - **Chains**: `promptStudioChains` — saved chain pipelines
 
-All writes go through `safeLocalStorageSet()` which catches quota errors.
+Template and chain writes use `safeLocalStorageSet()` and change UI state only after success. Theme and debounced autosave writes have their own guarded storage access.
 
 ### Toast Bus
 A lightweight pub/sub event bus (`toastBus`) decoupled from the React tree. Call `showToast(message, type)` from anywhere. The `ToastContainer` component subscribes via `useEffect`.
@@ -78,7 +82,7 @@ A lightweight pub/sub event bus (`toastBus`) decoupled from the React tree. Call
 `useDarkMode()` hook returns `[isDark, mode, setMode]`. Manages the `dark` class on `<html>` and syncs with `prefers-color-scheme` when mode is `'system'`. Persists to localStorage.
 
 ### Chain Builder
-A separate component (`ChainBuilder`) for multi-step prompt pipelines. Steps reference prompt types from the main schemas. Includes "translate" steps that push output to 23+ platform targets (Canva, Figma, GitHub, Vercel, n8n, etc.).
+A separate component (`ChainBuilder`) for multi-step prompt pipelines. Steps use `standard` or `translate` types. The shared core validates unique IDs/output labels and earlier-step inputs. Includes "translate" steps that describe adaptations for 23+ platform targets (Canva, Figma, GitHub, Vercel, n8n, etc.).
 
 ## How to Extend
 
@@ -106,8 +110,8 @@ Add an entry to `PRESETS[type]`:
 ## Conventions
 
 - **No build tools** — all changes are made directly in the HTML file.
-- **No external JS/CSS files** — everything is inline.
-- **CDN versions are pinned** — update with care, test in-browser.
+- **No external browser JS/CSS files** — browser logic stays inline. The optional server and Node tests are separate files.
+- **React and Babel CDN versions are pinned with SRI; Tailwind Play CDN is not pinned** — update with care, test in-browser.
 - **Prefer `useCallback`/`useMemo`** for functions and derived data in the main component to avoid re-render overhead in a 2000+ line single-component tree.
 - **Toast for user feedback** — use `showToast()` instead of `alert()`.
 - **Safe storage writes** — always use `safeLocalStorageSet()` for localStorage writes.

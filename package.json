@@ -1,0 +1,16 @@
+{
+  "name": "universal-prompt-studio",
+  "version": "11.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "mcp": "node mcp/server.mjs",
+    "mcp:http": "node mcp/server.mjs --http",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.6.1"
+  }
+}

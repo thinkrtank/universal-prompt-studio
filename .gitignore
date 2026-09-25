@@ -4,3 +4,7 @@ Thumbs.db
 .playwright-mcp/
 skills/
 *.pdf
+
+node_modules/
+.env
+*.log
