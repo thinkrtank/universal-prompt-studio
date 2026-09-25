@@ -30,7 +30,7 @@
           colors: {
             paper: 'var(--bg)', surface: 'var(--surface)', field: 'var(--field)', code: 'var(--code)',
             ink: 'var(--ink)', ink2: 'var(--ink-2)', muted: 'var(--muted)', rule: 'var(--rule)', strong: 'var(--rule-strong)',
-            accent: 'var(--accent)', accentsoft: 'var(--accent-soft)', ok: 'var(--ok)', err: 'var(--err)',
+            accent: 'var(--accent-text)', accentsoft: 'var(--accent-soft)', ok: 'var(--ok)', err: 'var(--err)',
           },
           fontFamily: {
             serif: ['Newsreader', 'Georgia', 'serif'],
@@ -46,17 +46,57 @@
     :root {
       --bg: #EEEAE2; --surface: #F6F3ED; --field: #FAF8F4; --code: #E6E1D7;
       --ink: #1C1A17; --ink-2: #3B372F; --muted: #6C665C; --rule: #D4CDBF; --rule-strong: #1C1A17;
-      --accent: #A33A1C; --accent-ink: #FAF8F4; --accent-soft: #EFDDD2;
       --ok: #3D6B47; --err: #A42A26;
+      /* Builder families (periodic-table style): one muted hue per discipline. Text on them uses --on-fam. */
+      --fam-media: #A5391C; --fam-language: #1F5A5E; --fam-software: #34427A; --fam-business: #6B5A12; --fam-pipelines: #262320;
+      --on-fam: #F7F4EE;
+      --accent: var(--fam-media); --accent-ink: var(--on-fam);
       color-scheme: light;
     }
     html.dark {
       --bg: #151412; --surface: #1C1B18; --field: #23211D; --code: #100F0D;
       --ink: #ECE7DD; --ink-2: #CFC8BB; --muted: #9A9386; --rule: #35322C; --rule-strong: #ECE7DD;
-      --accent: #DA6A40; --accent-ink: #151412; --accent-soft: #3A2419;
       --ok: #86B592; --err: #E57A6C;
+      --fam-media: #B0452A; --fam-language: #2B6A6E; --fam-software: #45549B; --fam-business: #7A6718; --fam-pipelines: #3A3631;
+      --on-fam: #F0EBE1;
+      --accent: var(--fam-media); --accent-ink: var(--on-fam);
       color-scheme: dark;
     }
+    /* A builder screen takes its family's hue as the accent; the soft tint is re-derived wherever the family changes. */
+    [data-family="media"] { --accent: var(--fam-media); }
+    [data-family="language"] { --accent: var(--fam-language); }
+    [data-family="software"] { --accent: var(--fam-software); }
+    [data-family="business"] { --accent: var(--fam-business); }
+    [data-family="pipelines"] { --accent: var(--fam-pipelines); }
+    :root, [data-family] { --accent-soft: color-mix(in srgb, var(--accent) 15%, var(--bg)); --accent-text: var(--accent); }
+    /* Deep fills stay the same in dark mode; where the hue is used as text or a line it is lifted for contrast. */
+    html.dark, html.dark [data-family] { --accent-soft: color-mix(in srgb, var(--accent) 35%, var(--bg)); --accent-text: color-mix(in srgb, var(--accent) 50%, #ffffff); }
+
+    /* Periodic-table tiles on the home screen. Hover inverts to paper; nothing moves. */
+    .tile { position: relative; display: flex; flex-direction: column; min-height: 15.5rem; padding: 0.9rem 1rem 1rem; text-align: left; background: var(--accent); color: var(--on-fam); border: 1px solid var(--accent); border-radius: 2px; cursor: pointer; }
+    .tile:hover { background: var(--bg); color: var(--ink); border-color: var(--ink); }
+    .tile:hover .tile-sym { color: var(--accent-text); }
+    @media (max-width: 639px) { .tile { min-height: 9.5rem; } .tile-sym { margin-top: 0.6rem; } }
+    .tile-sym { font-family: Newsreader, Georgia, serif; font-size: 3.6rem; line-height: 1; letter-spacing: -0.03em; margin-top: 1.1rem; }
+    .tile-meta { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; letter-spacing: 0.04em; opacity: 0.85; }
+    /* Builder header band in the family hue; controls inside it invert. */
+    .band { background: var(--accent); color: var(--on-fam); }
+    .band .btn { border-color: var(--on-fam); color: var(--on-fam); }
+    .band .btn:hover:not(:disabled) { background: var(--on-fam); color: var(--accent); }
+    .band .btn-quiet { border-color: transparent; }
+    .band .btn-quiet:hover:not(:disabled) { background: transparent; color: var(--on-fam); }
+    .band .btn-primary { background: var(--on-fam); border-color: var(--on-fam); color: var(--accent); }
+    .band .btn-primary:hover:not(:disabled) { background: transparent; color: var(--on-fam); }
+    .band .seg { border-color: var(--on-fam); }
+    .band .seg button { color: var(--on-fam); }
+    .band .seg button + button { border-left-color: var(--on-fam); }
+    .band .seg button[aria-pressed="true"] { background: var(--on-fam); color: var(--accent); }
+    .band .seg button:hover:not([aria-pressed="true"]) { background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+    .band .mark { background: var(--on-fam); color: var(--accent); }
+    .band .fld { border-color: var(--on-fam); }
+    .swatch { display: inline-block; width: 0.7rem; height: 0.7rem; background: var(--accent); vertical-align: -0.05rem; }
+    .mark { display: inline-flex; align-items: center; justify-content: center; width: 2.4rem; height: 2.4rem; background: var(--accent); color: var(--on-fam); font-family: Newsreader, Georgia, serif; font-size: 1.35rem; letter-spacing: -0.02em; border-radius: 2px; }
+
     body { margin: 0; background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
     ::selection { background: var(--accent); color: var(--accent-ink); }
     .serif { font-family: Newsreader, Georgia, serif; font-optical-sizing: auto; letter-spacing: -0.01em; }
@@ -66,7 +106,7 @@
     /* Form controls */
     .fld { display: block; width: 100%; background: var(--field); color: var(--ink); border: 1px solid var(--rule); border-radius: 2px; padding: 0.5rem 0.65rem; font: inherit; font-size: 14px; line-height: 1.45; }
     .fld::placeholder { color: var(--muted); opacity: 0.85; }
-    .fld:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+    .fld:focus { outline: 2px solid var(--accent-text); outline-offset: -1px; border-color: var(--accent-text); }
     textarea.fld { resize: vertical; min-height: 5.5rem; }
     select.fld { cursor: pointer; }
     .fld-bare { background: transparent; border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; padding: 0.25rem 0; }
@@ -83,7 +123,7 @@
     .btn-quiet:hover:not(:disabled) { background: transparent; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
     .btn-sm { padding: 0.3rem 0.6rem; font-size: 13px; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    button:focus-visible, .row:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    button:focus-visible, .row:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 
     /* Segmented control */
     .seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 2px; }
@@ -105,7 +145,7 @@
     .sec { display: grid; grid-template-columns: 1.75rem 1fr auto; gap: 0.25rem 0.5rem; width: 100%; padding: 0.55rem 0.5rem; text-align: left; border-bottom: 1px solid var(--rule); background: transparent; color: var(--ink-2); cursor: pointer; }
     .sec:hover { background: var(--surface); color: var(--ink); }
     .sec[aria-current="step"] { background: var(--accent-soft); color: var(--ink); }
-    .sec[aria-current="step"] .sec-num { color: var(--accent); }
+    .sec[aria-current="step"] .sec-num { color: var(--accent-text); }
 
     /* Surfaces */
     .panel { background: var(--surface); border: 1px solid var(--rule); }
@@ -113,7 +153,7 @@
     .dialog { background: var(--bg); color: var(--ink); border: 1px solid var(--rule-strong); width: 100%; max-height: 90vh; display: flex; flex-direction: column; }
     .code { background: var(--code); color: var(--ink); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px; line-height: 1.6; padding: 1rem 1.1rem; white-space: pre-wrap; word-break: break-word; margin: 0; }
     .code .k { color: var(--muted); }
-    .code .l { color: var(--accent); }
+    .code .l { color: var(--accent-text); }
     .toast { background: var(--ink); color: var(--bg); border: 1px solid var(--ink); padding: 0.6rem 0.9rem; font-size: 13.5px; max-width: 24rem; }
     .toast[data-type="error"] { background: var(--err); border-color: var(--err); }
 
@@ -2966,7 +3006,11 @@
     }
 
     // Home index: builders grouped by discipline (TYPE_META.group). Unknown groups fall into "Other".
-    const BUILDER_GROUPS = [['media', 'Image, video, motion and sound'], ['language', 'Language models and agents'], ['software', 'Software'], ['business', 'Business']];
+    const BUILDER_GROUPS = [['media', 'Media'], ['language', 'Language & Agents'], ['software', 'Software'], ['business', 'Business']];
+    // Two-letter "element" symbols for the periodic-table home. Unknown builders fall back to their first two letters.
+    const BUILDER_SYMBOLS = { image: 'Im', video: 'Vi', motion: 'Md', aftereffects: 'Ae', audio: 'Au', llm: 'Ll', agent: 'Ag', loop: 'Lp', dev: 'Dv', vibe: 'Vc', frontend: 'Fe', marketing: 'Mk', pm: 'Pm' };
+    const builderSymbol = type => BUILDER_SYMBOLS[type] || (TYPE_META[type]?.shortTitle || type).slice(0, 2);
+    const builderFamily = type => BUILDER_GROUPS.some(([id]) => id === TYPE_META[type]?.group) ? TYPE_META[type].group : 'pipelines';
     const MODEL_REVIEW_DATE = '2026-09-25';
     const pad2 = n => String(n).padStart(2, '0');
 
@@ -3097,11 +3141,12 @@
       };
 
       return (
-        <div className="min-h-screen bg-paper text-ink">
-          <header className="sticky top-0 z-30 bg-paper border-b border-rule">
+        <div className="min-h-screen bg-paper text-ink" data-family="pipelines">
+          <header className="sticky top-0 z-30 band">
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
               <button onClick={onBack} className="btn btn-quiet btn-sm">All builders</button>
-              <span className="text-rule" aria-hidden="true">/</span>
+              <span className="opacity-60" aria-hidden="true">/</span>
+              <span className="mark" aria-hidden="true">Ch</span>
               <h1 className="serif text-2xl leading-none">Chain Builder</h1>
               <div className="ml-auto flex flex-wrap items-center gap-2">
                 <ThemeToggle mode={themeMode} setMode={setThemeMode} />
@@ -3764,16 +3809,14 @@
         const profileCount = Object.values(MODEL_PROFILES).reduce((n, family) => n + Object.keys(family).length, 0);
         const presetCount = Object.values(PRESETS).reduce((n, set) => n + Object.keys(set).length, 0);
         const templateEntries = Object.entries(savedTemplates);
-        const known = new Set(BUILDER_GROUPS.map(([id]) => id));
-        const groups = [...BUILDER_GROUPS, ['other', 'Other']]
-          .map(([id, label]) => [label, Object.keys(TYPE_META).filter(t => id === 'other' ? !known.has(TYPE_META[t].group) : TYPE_META[t].group === id)])
-          .filter(([, types]) => types.length);
-        let rowNumber = 0;
-        const rowMeta = type => {
+        const familyOrder = [...BUILDER_GROUPS.map(([id]) => id), 'pipelines'];
+        // Stable sort keeps TYPE_META order inside each family.
+        const tileTypes = Object.keys(TYPE_META).sort((a, b) => familyOrder.indexOf(builderFamily(a)) - familyOrder.indexOf(builderFamily(b)));
+        const tileStats = type => {
           const modelField = Object.values(SCHEMAS[type]).find(field => field.modelProfiles);
-          const sectionsCount = Object.keys(SECTION_INFO[type]).length;
-          return [`${sectionsCount} sections`, modelField ? `${modelField.options.length} targets` : `${Object.keys(SCHEMAS[type]).length} fields`];
+          return [`${Object.keys(SECTION_INFO[type]).length} sections`, modelField ? `${modelField.options.length} targets` : `${Object.keys(SCHEMAS[type]).length} fields`];
         };
+        const families = [...BUILDER_GROUPS, ['pipelines', 'Pipelines']];
         return (
           <div className="min-h-screen bg-paper text-ink flex flex-col">
             {confirmModal}
@@ -3787,8 +3830,8 @@
               </div>
             </header>
 
-            <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-14 flex-1">
-              <section className="grid lg:grid-cols-12 gap-8 pb-10 border-b border-strong">
+            <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-12 flex-1">
+              <section className="grid lg:grid-cols-12 gap-8">
                 <div className="lg:col-span-8">
                   <h1 className="serif text-[2.6rem] sm:text-6xl leading-[1.02]">Universal Prompt Studio</h1>
                   <p className="mt-5 text-lg text-ink2 max-w-2xl">
@@ -3798,7 +3841,7 @@
                   </p>
                 </div>
                 <dl className="lg:col-span-4 self-end mono text-sm">
-                  {[['Builders', Object.keys(TYPE_META).length + 1], ['Target models and tools', profileCount], ['Presets', presetCount], ['Model specs reviewed', MODEL_REVIEW_DATE]].map(([term, val]) => (
+                  {[['Builders', tileTypes.length + 1], ['Target models and tools', profileCount], ['Presets', presetCount], ['Model specs reviewed', MODEL_REVIEW_DATE]].map(([term, val]) => (
                     <div key={term} className="flex justify-between gap-4 py-1.5 border-b border-rule">
                       <dt className="text-muted">{term}</dt><dd className="text-ink">{val}</dd>
                     </div>
@@ -3807,10 +3850,10 @@
               </section>
 
               {autoSaveData && (
-                <div className="mt-8 border border-strong px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm">
-                    <span className="kicker mr-3">Unsaved session</span>
-                    {TYPE_META[autoSaveData.type]?.shortTitle} builder, {new Date(autoSaveData.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                <div className="mt-8 border border-strong px-4 py-3 flex flex-wrap items-center justify-between gap-3" data-family={builderFamily(autoSaveData.type)}>
+                  <p className="text-sm flex items-center gap-3">
+                    <span className="mark !w-7 !h-7 !text-sm">{builderSymbol(autoSaveData.type)}</span>
+                    <span><span className="font-medium">Unsaved {TYPE_META[autoSaveData.type]?.shortTitle} session</span><span className="text-muted"> from {new Date(autoSaveData.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span></span>
                   </p>
                   <div className="flex gap-2">
                     <button onClick={() => { setAutoSaveData(null); try { localStorage.removeItem('promptStudioAutosave'); } catch (e) {} }} className="btn btn-quiet btn-sm">Discard</button>
@@ -3820,87 +3863,81 @@
                 </div>
               )}
 
-              <div className="grid lg:grid-cols-12 gap-x-10 gap-y-12 mt-10">
-                <div className="lg:col-span-8 space-y-10">
-                  {groups.map(([label, types]) => (
-                    <section key={label} aria-label={label}>
-                      <h2 className="kicker pb-2 border-b border-strong flex justify-between"><span>{label}</span><span>{types.length}</span></h2>
-                      <ul>
-                        {types.map(type => {
-                          const meta = TYPE_META[type];
-                          const [left, right] = rowMeta(type);
-                          rowNumber += 1;
-                          return (
-                            <li key={type}>
-                              <button type="button" onClick={() => setPromptType(type)} className="row">
-                                <span className="mono text-xs text-muted w-6 shrink-0">{pad2(rowNumber)}</span>
-                                <span className="flex-1 min-w-0">
-                                  <span className="row-title serif text-[1.6rem] leading-tight block">{meta.shortTitle}</span>
-                                  <span className="block text-sm text-muted mt-1 max-w-xl">{meta.desc}</span>
-                                </span>
-                                <span className="hidden sm:block mono text-xs text-muted text-right shrink-0 leading-relaxed">{left}<br />{right}</span>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </section>
-                  ))}
-                  <section aria-label="Pipelines">
-                    <h2 className="kicker pb-2 border-b border-strong flex justify-between"><span>Pipelines</span><span>1</span></h2>
-                    <button type="button" onClick={() => setShowChain(true)} className="row">
-                      <span className="mono text-xs text-muted w-6 shrink-0">{pad2(rowNumber + 1)}</span>
-                      <span className="flex-1 min-w-0">
-                        <span className="row-title serif text-[1.6rem] leading-tight block">Chain Builder</span>
-                        <span className="block text-sm text-muted mt-1 max-w-xl">Multi-step pipelines where each step's output feeds the next, ending in a translation for any platform.</span>
-                      </span>
-                      <span className="hidden sm:block mono text-xs text-muted text-right shrink-0 leading-relaxed">{CHAIN_TARGETS.length} platforms</span>
-                    </button>
-                  </section>
-                </div>
+              <h2 className="kicker mt-12 mb-3">Choose a builder</h2>
+              <ul className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-2">
+                {tileTypes.map((type, i) => {
+                  const meta = TYPE_META[type];
+                  const [a, b] = tileStats(type);
+                  return (
+                    <li key={type} data-family={builderFamily(type)}>
+                      <button type="button" onClick={() => setPromptType(type)} className="tile w-full h-full" aria-label={`${meta.shortTitle} builder`}>
+                        <span className="tile-meta flex justify-between gap-2"><span>{pad2(i + 1)}</span><span className="hidden sm:block text-right">{a}<br />{b}</span></span>
+                        <span className="tile-sym" aria-hidden="true">{builderSymbol(type)}</span>
+                        <span className="mt-3 font-semibold text-[1.05rem] leading-tight">{meta.shortTitle}</span>
+                        <span className="mt-1.5 text-[13px] leading-snug opacity-90 hidden sm:block">{meta.desc}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+                <li data-family="pipelines">
+                  <button type="button" onClick={() => setShowChain(true)} className="tile w-full h-full" aria-label="Chain Builder">
+                    <span className="tile-meta flex justify-between gap-2"><span>{pad2(tileTypes.length + 1)}</span><span className="hidden sm:block text-right">{CHAIN_TARGETS.length} platforms</span></span>
+                    <span className="tile-sym" aria-hidden="true">Ch</span>
+                    <span className="mt-3 font-semibold text-[1.05rem] leading-tight">Chain Builder</span>
+                    <span className="mt-1.5 text-[13px] leading-snug opacity-90 hidden sm:block">Multi-step pipelines where each step's output feeds the next, ending in a translation for any platform.</span>
+                  </button>
+                </li>
+                <li className="border border-strong p-4 flex flex-col min-h-[9.5rem] sm:min-h-[15.5rem]" aria-label="Key">
+                  <span className="tile-meta flex justify-between gap-2 text-muted"><span>No.</span><span className="text-right">Sections<br />Targets or fields</span></span>
+                  <span className="tile-sym text-muted" aria-hidden="true">Sy</span>
+                  <span className="mt-3 font-semibold text-[1.05rem] leading-tight">Key</span>
+                  <ul className="mt-2 space-y-1 text-[13px] text-ink2">
+                    {families.map(([id, label]) => (
+                      <li key={id} data-family={id} className="flex items-center gap-2"><span className="swatch" aria-hidden="true" />{label}</li>
+                    ))}
+                  </ul>
+                </li>
+              </ul>
 
-                <aside className="lg:col-span-4">
-                  <div className="lg:sticky lg:top-6 space-y-10">
-                    <section aria-label="Saved templates">
-                      <h2 className="kicker pb-2 border-b border-strong flex justify-between"><span>Saved templates</span><span>{templateEntries.length}</span></h2>
-                      {templateEntries.length === 0 ? (
-                        <p className="text-sm text-muted py-4">Nothing saved yet. Templates you save from a builder's output appear here, stored in this browser only.</p>
-                      ) : (
-                        <ul>
-                          {templateEntries.map(([name, template]) => (
-                            <li key={name} className="py-3 border-b border-rule">
-                              <div className="flex items-baseline justify-between gap-2">
-                                <span className="font-medium truncate">{name}</span>
-                                <span className="mono text-xs text-muted shrink-0">{TYPE_META[template.type]?.shortTitle}</span>
-                              </div>
-                              <div className="flex -ml-1.5 mt-1">
-                                <button onClick={() => { setTemplateViewMode('json'); setViewingTemplate({ name, template }); }} className="btn btn-quiet btn-sm">View</button>
-                                <button onClick={() => loadTemplate(name)} className="btn btn-quiet btn-sm">Open</button>
-                                <button onClick={() => deleteTemplate(name)} className="btn btn-quiet btn-sm text-err">Delete</button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <div className="flex flex-wrap gap-2 pt-4">
-                        {templateEntries.length > 0 && <button onClick={exportAllTemplates} className="btn btn-sm">Export all</button>}
-                        <button onClick={() => templateFileInputRef.current && templateFileInputRef.current.click()} className="btn btn-sm">Import from file</button>
-                      </div>
-                      <input ref={templateFileInputRef} type="file" accept="application/json,.json" className="hidden"
-                        onChange={e => { const f = e.target.files && e.target.files[0]; importTemplatesFromFile(f); e.target.value = ''; }} />
-                    </section>
-                    <section aria-label="About">
-                      <h2 className="kicker pb-2 border-b border-strong">About the output</h2>
-                      <p className="text-sm text-muted pt-3">The studio composes prompts in your browser and never calls a model. Model names, limits and syntax are guidance checked against vendor docs on <span className="whitespace-nowrap">{MODEL_REVIEW_DATE}</span>; providers change them often.</p>
-                    </section>
+              <section className="grid md:grid-cols-12 gap-x-10 gap-y-4 mt-14 pt-8 border-t border-strong" aria-label="Saved templates">
+                <div className="md:col-span-4">
+                  <h2 className="kicker">Saved templates · {templateEntries.length}</h2>
+                  <p className="text-sm text-muted mt-2 max-w-xs">Save a setup from any builder's output to reuse it later. Templates stay in this browser; export them to move or back up.</p>
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {templateEntries.length > 0 && <button onClick={exportAllTemplates} className="btn btn-sm">Export all</button>}
+                    <button onClick={() => templateFileInputRef.current && templateFileInputRef.current.click()} className="btn btn-sm">Import from file</button>
                   </div>
-                </aside>
-              </div>
+                  <input ref={templateFileInputRef} type="file" accept="application/json,.json" className="hidden"
+                    onChange={e => { const f = e.target.files && e.target.files[0]; importTemplatesFromFile(f); e.target.value = ''; }} />
+                </div>
+                <div className="md:col-span-8">
+                  {templateEntries.length === 0 ? (
+                    <p className="text-sm text-muted border border-dashed border-rule px-4 py-6">No templates yet.</p>
+                  ) : (
+                    <ul className="border-t border-rule">
+                      {templateEntries.map(([name, template]) => (
+                        <li key={name} data-family={builderFamily(template.type)} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5 border-b border-rule">
+                          <span className="mark !w-8 !h-8 !text-base" aria-hidden="true">{builderSymbol(template.type)}</span>
+                          <span className="flex-1 min-w-[10rem]">
+                            <span className="font-medium block truncate">{name}</span>
+                            <span className="mono text-xs text-muted">{TYPE_META[template.type]?.shortTitle} · {new Date(template.savedAt).toLocaleDateString()}</span>
+                          </span>
+                          <span className="flex">
+                            <button onClick={() => { setTemplateViewMode('json'); setViewingTemplate({ name, template }); }} className="btn btn-quiet btn-sm">View</button>
+                            <button onClick={() => loadTemplate(name)} className="btn btn-quiet btn-sm">Open</button>
+                            <button onClick={() => deleteTemplate(name)} className="btn btn-quiet btn-sm text-err">Delete</button>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </section>
             </main>
 
             <footer className="border-t border-rule">
               <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap justify-between gap-2 mono text-xs text-muted">
-                <span>Runs locally. Templates stay in this browser.</span>
+                <span>Runs in your browser and never calls a model. Model specs checked against vendor docs on {MODEL_REVIEW_DATE}.</span>
                 <span>MIT License</span>
               </div>
             </footer>
@@ -3909,7 +3946,7 @@
               const viewJSON = buildNestedJSON(viewingTemplate.template.data, viewingTemplate.template.type);
               const viewContent = templateViewMode === 'json' ? viewJSON : jsonToPlainText(viewJSON);
               return (
-                <div className="scrim z-50" role="dialog" aria-modal="true" aria-labelledby="view-template-title" onKeyDown={e => e.key === 'Escape' && setViewingTemplate(null)}>
+                <div className="scrim z-50" role="dialog" aria-modal="true" aria-labelledby="view-template-title" data-family={builderFamily(viewingTemplate.template.type)} onKeyDown={e => e.key === 'Escape' && setViewingTemplate(null)}>
                   <div className="dialog max-w-3xl">
                     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-rule">
                       <div>
@@ -3965,9 +4002,9 @@
       const meta = TYPE_META[promptType] || {};
 
       return (
-        <div className="min-h-screen bg-paper text-ink">
+        <div className="min-h-screen bg-paper text-ink" data-family={builderFamily(promptType)}>
           {confirmModal}
-          <header className="sticky top-0 z-30 bg-paper border-b border-rule">
+          <header className="sticky top-0 z-30 band">
             <div className="max-w-[88rem] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
               <button
                 onClick={async () => { if (!hasUnsavedChanges || (await confirmDialog('You have unsaved changes. Leave anyway?', { confirmLabel: 'Leave' }))) { setPromptType(null); setHasUnsavedChanges(false); } }}
@@ -3975,10 +4012,11 @@
               >
                 All builders
               </button>
-              <span className="text-rule" aria-hidden="true">/</span>
+              <span className="opacity-60" aria-hidden="true">/</span>
+              <span className="mark" aria-hidden="true">{builderSymbol(promptType)}</span>
               <h1 className="serif text-2xl leading-none">{meta.shortTitle}</h1>
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                <span className="mono text-xs text-muted w-16 text-right" aria-live="polite">{autoSaveStatus ? 'Saved' : ''}</span>
+                <span className="mono text-xs opacity-80 w-16 text-right" aria-live="polite">{autoSaveStatus ? 'Saved' : ''}</span>
                 <ThemeToggle mode={themeMode} setMode={setThemeMode} />
                 <button onClick={() => setShowImport(true)} className="btn btn-sm">Import</button>
                 <select key={presetKey} onChange={e => e.target.value && applyPreset(e.target.value)} className="fld w-auto text-[13px] py-1.5" defaultValue="" aria-label="Apply a preset">
@@ -4014,9 +4052,9 @@
             </nav>
 
             <main className="min-w-0">
-              <div className="flex flex-wrap items-end justify-between gap-4 pb-5 border-b border-strong">
+              <div className="flex flex-wrap items-end justify-between gap-4 pb-5 border-b-2 border-accent">
                 <div className="min-w-0">
-                  <p className="kicker">{searchActive ? 'Search' : `Section ${pad2(activeSection + 1)} of ${pad2(sections.length)}`}</p>
+                  <p className="kicker !text-accent">{searchActive ? 'Search' : `Section ${pad2(activeSection + 1)} of ${pad2(sections.length)}`}</p>
                   <h2 className="serif text-4xl mt-1">{searchActive ? 'Matching fields' : currentSectionInfo.title}</h2>
                   <p className="text-muted mt-1">{searchActive ? `${currentFields.length} field${currentFields.length === 1 ? '' : 's'} match "${fieldSearch.trim()}"` : currentSectionInfo.desc}</p>
                 </div>
