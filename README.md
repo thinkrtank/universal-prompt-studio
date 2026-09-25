@@ -1,6 +1,6 @@
 # Universal Prompt Studio
 
-A browser-based prompt engineering studio. Twelve guided builders turn plain-English ideas into structured, model-ready prompts — for image and video generation, LLM chats, coding, marketing, frontend design, project management, agent loops, audio, and multi-agent systems.
+A browser-based prompt engineering studio. Fourteen guided builders turn plain-English ideas into structured, model-ready prompts — for image and video generation, motion design, After Effects, LLM chats, coding, marketing, frontend design, project management, agent loops, audio, and multi-agent systems. Pick a target model and the output adds that model's prompting tips, limit warnings and native syntax.
 
 **No installation or build step for the browser app. Open the HTML file with an internet connection.**
 
@@ -9,7 +9,7 @@ Optional [MCP agent access](mcp/README.md) supports agents on your PC or Raspber
 ![HTML5](https://img.shields.io/badge/HTML5-Single_File-orange) ![React](https://img.shields.io/badge/React-18-blue) ![Tailwind](https://img.shields.io/badge/Tailwind_CSS-3-38bdf8) ![License](https://img.shields.io/badge/License-MIT-green)
 
 <p align="center">
-  <a href="screenshots/home.png"><img src="screenshots/home.png" width="700" alt="Universal Prompt Studio home screen with all twelve builder modes"></a>
+  <a href="screenshots/home.png"><img src="screenshots/home.png" width="700" alt="Universal Prompt Studio home screen with all fourteen builder modes"></a>
 </p>
 
 ## Quick Start
@@ -33,24 +33,27 @@ That's it. Everything runs client-side in your browser — no server, no account
 
 ## The Builders
 
-- **Image Prompt Builder** — For Nano Banana 2 / Pro (Gemini), GPT Image 2, Midjourney V8, FLUX.2, and Stable Diffusion. Covers subject, scene, camera settings, lighting, composition, style, text rendering, reference-image / character-consistency controls, plus a dedicated section for local Stable Diffusion knobs (samplers, CLIP skip, ControlNet hints).
-- **Video Prompt Builder** — For Veo 3.1, Kling 3, Runway Gen-4.5, Hailuo, Grok Imagine, and LTX-2. Extends image prompts with motion, native audio, resolution, duration, and transition controls.
-- **LLM Prompt Builder** — For ChatGPT, Claude, Gemini, DeepSeek, Qwen, Llama. Covers role/persona, task definition, context, output format, behavior frameworks (ROSES, CO-STAR, PTCF, etc.), memory, citation, iteration, and safety guardrails. Includes an industry skills picker with 25+ domains.
+- **Image Prompt Builder** — Target-model picker for 30 models: GPT Image 2.5 Flare / Sunburst, Nano Banana 2 / Lite / Pro, Midjourney V8.2 / V7 / Niji 7, FLUX.2 and FLUX 3, Ideogram 4, Recraft V4.1, Seedream 5, Qwen-Image 2.1, Firefly Image 5, local SD 3.5 / SDXL and more. Covers subject, scene, camera, lighting, composition, style, text layout, multi-reference and instruction edits, output format (SVG, layered, transparent), Midjourney parameters, and local diffusion knobs. Output includes ready-to-paste Midjourney flags or A1111/ComfyUI infotext, and warns about unsupported ratios, resolutions, reference counts and negative prompts.
+- **Video Prompt Builder** — Target-model picker for 22 models: Gemini Omni Flash, Veo 3.1, Kling 3.0 / Omni / Turbo / Motion Control, Runway Gen-4.5 and Aleph, Luma Ray3.2, Seedance 2.x, MiniMax H3, Wan 3.0, LTX-2.5, Vidu Q3, Grok Imagine Video 1.5, Midjourney Video and more. Adds multi-shot storyboards, first/last frames, reference images/videos/audio (Seedance @-tokens), motion transfer, edit-existing-footage modes, timestamped action, dialogue with lip-sync, and duration/resolution checks per model.
+- **LLM Prompt Builder** — Target-model picker for Claude Fable 5.1 / Opus 5.5 / Sonnet 5 / Haiku 4.5, GPT-6, Gemini 3.8, Grok 4.7, DeepSeek, Qwen, Kimi, GLM, Llama and local models (with API model ids), plus reasoning effort, prompt structure (XML vs Markdown), JSON Schema output, prefill and stop markers. Covers role/persona, task definition, context, output format, behavior frameworks (ROSES, CO-STAR, PTCF, etc.), memory, citation, iteration, and safety guardrails. Includes an industry skills picker with 25+ domains.
 - **Dev Prompt Builder** — For code generation, debugging, refactoring, and architecture tasks. Covers language/framework selection, code context, constraints, testing requirements, and output format preferences.
 - **Marketing Prompt Builder** — For ad copy, social media, email campaigns, and brand content. Covers audience targeting, tone/voice, platform constraints, CTAs, and campaign objectives.
 - **Vibe Coder Prompt Builder** — Build web apps with AI, guided by The Vibe Coder's Handbook: 14 tech-stack decisions (runtime, framework, styling, database, auth, deploy) with inline guidance for each choice.
 - **Frontend Design Prompt Builder** — For v0, Lovable, Bolt, Claude Code, Cursor, Figma Make, and Framer AI. Covers visual design language (30 aesthetic directions, color systems, typography), layout & structure, components, imagery, motion & interaction, frontend tech stack, responsive/accessibility targets, performance budgets, and design references. Ships with 5 presets from SaaS landing page to dark-luxury agency site.
 - **Project Management Prompt Builder** — Grounded in the PMBOK Guide 8th Edition: the Seven Questions (one per performance domain), development-approach tailoring (predictive/adaptive/hybrid), project size classes, kill criteria, EVM-lite tracking (SPI/CPI/EAC), risk registers with P×I scoring, and AI-delegation planning. Generates prompts for 21 artifact types — charters, full plans, WBS/backlogs, risk registers, status reports, sprint plans, retrospectives, and plan audits.
 - **Agent Loop Prompt Builder** — For "loop engineering" (the Ralph technique): running coding agents in continuous loops with fresh context per iteration. Covers loop harness styles, iteration contracts, file-based state (plan file, AGENTS.md, blockers), verifiable stop conditions, anti-reward-hacking verification gates, budgets and stall detection, and sandbox isolation. Built from July-2026 practitioner research — including the honest caveats.
-- **Audio Prompt Builder** — For Suno, Udio (music), ElevenLabs / TTS (voice), and sound design. Covers genre, mood, tempo, instruments, lyrics, voice style, and production notes.
-- **Agent Prompt Builder** — For tool-use and multi-agent systems (Claude Agent SDK, MCP, LangGraph). Covers objective, tool surface, reasoning loop, memory strategy, guardrails, and output.
-- **Chain Builder** — Build multi-step prompt pipelines where each step's output feeds the next. Add translate steps to describe adaptations for 23+ platform targets (Canva, Figma, GitHub, Vercel, n8n, etc.).
+- **Audio Prompt Builder** — For Suno v6, Udio, ElevenLabs v3 / Music / SFX, Lyria 3.5, Stable Audio 3, MiniMax, Gemini and OpenAI TTS. Covers genre, mood, BPM, key, time signature, dynamics, lyrics with section tags, voice design, inline delivery tags, multi-speaker dialogue, pronunciation, a sound-effects section, loudness targets, stems and licensing.
+- **Motion Design Prompt Builder** — A tool-agnostic motion brief for logo reveals, kinetic typography, UI micro-interactions, explainers, social ads and more — targeting After Effects, Jitter, Lottie Creator, Rive, Cavalry, Spline, code (GSAP, Motion, Remotion) or any AI video model. Covers style, typography animation, timing and easing (incl. the 12 principles), choreography and transitions, sound sync, deliverables (Lottie, .riv, ProRes 4444, safe zones) and accessibility.
+- **After Effects Prompt Builder** — Technical AE 26.x build prompts for an LLM, the AE AI Assistant, an AE MCP server, or a human: comp setup, layer structure, keyframing and easing, expressions (JavaScript vs legacy engine), ExtendScript/ScriptUI automation, Duik rigging, Advanced 3D with native shapes and Substance materials, native and third-party effects, MOGRTs, render and performance.
+- **Agent Prompt Builder** — For tool-use and multi-agent systems (Claude Agent SDK, Claude Managed Agents, MCP, LangGraph, Microsoft Agent Framework and more). Covers objective and evals, tool surface and permission mode, reasoning loop and subagent roles, memory strategy, guardrails (prompt-injection defence, approval checkpoints, tracing), and output.
+- **Chain Builder** — Build multi-step prompt pipelines where each step's output feeds the next. Add translate steps to describe adaptations for 30+ platform targets (Canva, Figma, GitHub, Vercel, n8n, After Effects, Lottie Creator, Rive, etc.).
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
 | Schema-driven forms | All UI generated dynamically from schema definitions |
+| Model-aware output | Pick a target model/tool and the output gains a `model_guidance` block: prompting tips, API model id, compatibility warnings and native syntax |
 | Presets | One-click presets per builder (Cinematic Portrait, Cyberpunk Scene, SaaS Landing Page, etc.) |
 | Templates | Save, load, and manage custom templates via localStorage |
 | Import / Export | JSON import/export for sharing prompts; export/import the entire template library to a file for backup |

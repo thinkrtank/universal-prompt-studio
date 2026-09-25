@@ -20,9 +20,11 @@ export function createMcpServer() {
     });
   tool('list_builders', 'List prompt builders. Tools compose instructions; they do not run models or publish content.', {},
     () => Object.entries(core.TYPE_META).map(([id, meta]) => ({ id, title: meta.title, description: meta.desc })));
-  tool('get_builder', 'Read schema, defaults, sections and sentinels before composing. Data uses flat dot-path keys.', { type },
+  tool('get_builder', 'Read schema, defaults, sections, sentinels and target-model profiles before composing. Data uses flat dot-path keys.', { type },
     ({ type }) => ({ type, fields: core.SCHEMAS[type], sections: core.SECTION_INFO[type],
-      defaults: core.defaultFormData(type), sentinels: core.SELECT_SENTINELS }));
+      defaults: core.defaultFormData(type), sentinels: core.SELECT_SENTINELS,
+      modelProfiles: Object.fromEntries([...new Set(Object.values(core.SCHEMAS[type]).map(f => f.modelProfiles).filter(Boolean))]
+        .map(family => [family, core.MODEL_PROFILES[family]])) }));
   tool('list_presets', 'Read built-in presets for a builder.', { type }, ({ type }) => core.PRESETS[type] || {});
   tool('generate_prompt', 'Generate JSON and text using the browser core, optionally from a preset. Returns an importable template library. No persistence.',
     { type, data: z.record(z.string(), z.unknown()).default({}), preset: z.string().optional(), useDefaults: z.boolean().default(true) },

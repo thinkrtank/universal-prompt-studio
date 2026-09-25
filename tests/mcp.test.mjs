@@ -16,7 +16,9 @@ async function exercise(client) {
   const builders = await client.callTool({ name: 'list_builders', arguments: {} });
   assert.equal(JSON.parse(builders.content[0].text).length, 13);
   const schema = await client.callTool({ name: 'get_builder', arguments: { type: 'image' } });
-  assert.ok(JSON.parse(schema.content[0].text).fields['text.enabled']);
+  const builder = JSON.parse(schema.content[0].text);
+  assert.ok(builder.fields['text.enabled']);
+  assert.match(builder.modelProfiles.image.midjourney_v8_2.label, /Midjourney V8\.2/);
   const args = { type: 'llm', data: { user_intent: 'Use my studio', 'role.persona': 'best_fit' } };
   const generated = await client.callTool({ name: 'generate_prompt', arguments: args });
   assert.notEqual(generated.isError, true);

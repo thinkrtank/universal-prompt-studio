@@ -61,7 +61,7 @@ Stop with Ctrl+C. A token is a shared local-service credential, not an OAuth imp
 
 | Tool | Purpose |
 | --- | --- |
-| `list_builders` | List the eleven schema-driven builders; chain generation is a separate tool. |
+| `list_builders` | List the thirteen schema-driven builders; chain generation is a separate tool. |
 | `get_builder` | Read a builder's fields, defaults, sections, and sentinel values. |
 | `list_presets` | Read the builder's built-in presets. |
 | `generate_prompt` | Generate nested JSON, matching plain text, and an importable template-library payload. |
@@ -80,7 +80,7 @@ Example arguments for `generate_prompt`:
 }
 ```
 
-Precedence is defaults, then preset, then `data`. Set `useDefaults: false` to omit defaults. Data uses flat dot-path keys, as shown above; nested JSON can be imported through the browser UI. Unknown builders/fields, wrong value types, and prototype-related paths are rejected. Legacy `user_intent` and internal `_industries_selected` fields remain accepted. String option values are preserved for compatibility with older templates; this is not a model-specific API validator. Hidden conditional fields are omitted. Empty strings skip fields, `none` remains explicit, and `ask_me`/`best_fit` become readable instructions.
+Precedence is defaults, then preset, then `data`. Set `useDefaults: false` to omit defaults. Data uses flat dot-path keys, as shown above; nested JSON can be imported through the browser UI. Unknown builders/fields, wrong value types, and prototype-related paths are rejected. Legacy `user_intent` and internal `_industries_selected` fields remain accepted. String option values are preserved for compatibility with older templates; this is not a model-specific API validator. When a target-model field is set (for example `meta.target_model: 'midjourney_v8_2'`), the result gains a `model_guidance` object with prompting notes, compatibility warnings and native syntax; `get_builder` returns the available profiles under `modelProfiles`. Hidden conditional fields are omitted. Empty strings skip fields, `none` remains explicit, and `ask_me`/`best_fit` become readable instructions.
 
 To bring an agent-generated prompt into the browser, save the returned `templateLibrary` object as a JSON file, then choose **Import templates** on the home screen. Alternatively, paste the returned `json` into **Import JSON** in the matching builder. Existing browser templates are not automatically synchronized with agents or other browser origins.
 
