@@ -45,12 +45,285 @@
       claymation:           ['clay_texture', 'stop_motion_feel', 'fingerprint_visible', 'armature_joints', 'imperfect_surface', 'bright_saturated_colors', 'exaggerated_proportions', 'tactile_material', 'wool_felt', 'plasticine', 'miniature_scale', 'loopy_studio_style', 'aardman_style', 'laika_style', 'rough_handmade'],
     };
 
+    // === MODEL PROFILES ===
+    // Per-model prompting notes, known limits and native syntax for the image/video/llm builders.
+    // Selecting `meta.target_model` adds a `model_guidance` block to the output (see buildPromptObject).
+    // Only verified limits are listed; an absent limit means "don't warn". Last verified 2026-09-25.
+    //
+    // A1111/ComfyUI infotext for local diffusion models.
+    const ratioDims = (ratio, megapixels, multiple = 64) => {
+      const [w, h] = String(ratio).split(':').map(Number);
+      if (!w || !h) return null;
+      const height = Math.sqrt((megapixels * 1e6) / (w / h));
+      const snap = n => Math.max(multiple, Math.round(n / multiple) * multiple);
+      return `${snap(height * w / h)}x${snap(height)}`;
+    };
+    const localDiffusionNative = megapixels => d => {
+      const lines = [];
+      if (d['advanced.negative_prompt']) lines.push(`Negative prompt: ${d['advanced.negative_prompt']}`);
+      const params = [
+        d['sd_local.steps'] !== undefined && d['sd_local.steps'] !== '' && `Steps: ${d['sd_local.steps']}`,
+        d['sd_local.sampler'] && `Sampler: ${d['sd_local.sampler'].replace(/_/g, ' ')}`,
+        d['sd_local.scheduler'] && `Schedule type: ${d['sd_local.scheduler']}`,
+        d['sd_local.guidance_scale'] !== undefined && d['sd_local.guidance_scale'] !== '' && `CFG scale: ${d['sd_local.guidance_scale']}`,
+        d['meta.seed'] !== undefined && d['meta.seed'] !== '' && `Seed: ${d['meta.seed']}`,
+        ratioDims(d['meta.aspect_ratio'], megapixels) && `Size: ${ratioDims(d['meta.aspect_ratio'], megapixels)}`,
+        d['sd_local.clip_skip'] && d['sd_local.clip_skip'] !== '1' && `Clip skip: ${d['sd_local.clip_skip']}`,
+        d['reference.mode'] === 'image_to_image' && d['sd_local.denoise_strength'] !== undefined && `Denoising strength: ${d['sd_local.denoise_strength']}`,
+      ].filter(Boolean);
+      if (params.length) lines.push(params.join(', '));
+      if (d['sd_local.lora']) lines.push(`LoRA: ${d['sd_local.lora']}`);
+      return lines.join('\n') || null;
+    };
+    const GPT25_RATIOS = ['1:1', '3:2', '2:3', '4:3', '3:4', '4:5', '5:4', '16:9', '9:16', '21:9', '2:1', '1:2'];
+    const NB_RATIOS = ['1:1', '3:2', '2:3', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];
+    const MODEL_PROFILES = {
+      image: {
+        gpt_image_2_5_flare:    { label: 'GPT Image 2.5 Flare (OpenAI, fast default)', status: 'current', api_model_id: 'gpt-image-2.5-flare', limits: { negative_prompt: false, transparency: true, max_refs: 16, aspect_ratios: GPT25_RATIOS },
+          notes: ['Write a natural-language brief; the model reasons about layout before drawing.', 'Put exact on-image text in quotes and state font, placement and hierarchy.', 'Up to 16 reference images and sketch-to-image — say which reference controls identity vs style.', 'Any WxH size (multiples of 16, ratio up to 3:1, max edge 3840); transparent PNG/WebP supported.', 'No negative prompt: state what to avoid as positive constraints ("clean background, no watermark").'] },
+        gpt_image_2_5_sunburst: { label: 'GPT Image 2.5 Sunburst (OpenAI, precision)', status: 'current', api_model_id: 'gpt-image-2.5-sunburst', limits: { negative_prompt: false, transparency: true, max_refs: 16, aspect_ratios: GPT25_RATIOS },
+          notes: ['Slower, precision sibling of Flare — use for precise edits, final renders, dense infographics and small text.', 'Quality tiers: low, medium, high, xhigh, max.', 'Put exact on-image text in quotes and state font, placement and hierarchy.', 'No negative prompt: state what to avoid as positive constraints.'] },
+        gpt_image_2:            { label: 'GPT Image 2 (OpenAI)', status: 'current', api_model_id: 'gpt-image-2', limits: { negative_prompt: false, aspect_ratios: ['1:1', '3:2', '2:3'] },
+          notes: ['API sizes are 1024x1024, 1536x1024 and 1024x1536 — other ratios need cropping.', 'Strong text rendering, including non-Latin scripts; quote the exact text.', 'No negative prompt: phrase exclusions positively.'] },
+        nano_banana_2:          { label: 'Nano Banana 2 (Google)', status: 'current', api_model_id: 'gemini-3.1-flash-image', limits: { negative_prompt: false, transparency: false, max_refs: 14, resolutions: ['512', '1K', '2K', '4K'], aspect_ratios: [...NB_RATIOS, '4:1', '1:4', '8:1', '1:8'] },
+          notes: ['Describe the scene as full sentences, not keyword lists.', 'Up to 14 reference images (10 objects, 4 characters, 3 styles): number them and say what each one controls.', 'Can ground on Google Search for real places/products and translate in-image text.', 'Resolution values are 512 / 1K / 2K / 4K (capital K). Output carries a SynthID watermark.'] },
+        nano_banana_2_lite:     { label: 'Nano Banana 2 Lite (Google)', status: 'current', api_model_id: 'gemini-3.1-flash-lite-image', limits: { negative_prompt: false, transparency: false, resolutions: ['1K'], aspect_ratios: [...NB_RATIOS, '4:1', '1:4', '8:1', '1:8'] },
+          notes: ['Fastest/cheapest Google tier: 1K only, no search grounding.', 'Use for drafts and bulk variations; switch to Nano Banana 2 or Pro for finals.'] },
+        nano_banana_pro:        { label: 'Nano Banana Pro (Google)', status: 'current', api_model_id: 'gemini-3-pro-image', limits: { negative_prompt: false, transparency: false, max_refs: 11, resolutions: ['1K', '2K', '4K'], aspect_ratios: NB_RATIOS },
+          notes: ['Best Google model for long text, infographics, diagrams and multi-panel layouts.', 'Spell out every text block verbatim and describe the layout grid.', 'References: up to 6 objects and 5 characters.'] },
+        midjourney_v8_2:        { label: 'Midjourney V8.2 (default)', status: 'current', limits: { transparency: false, max_refs: 4, hd_max_ratio: 4 },
+          notes: ['Lead with the subject and style in a short, vivid sentence; parameters go at the end.', 'Put words to render "in quotes".', '--cref/--oref are not available in V8 — use --edit with up to 4 reference images (Reference Mode: character/instruction edit).', 'Use --raw for literal, less-stylized results; --hd renders 2048px but limits --ar to 4:1.', '--q and :: multi-prompts are not supported on V8.'],
+          native: d => midjourneyNative(d, 'v8') },
+        midjourney_v7:          { label: 'Midjourney V7', status: 'legacy', limits: { transparency: false },
+          notes: ['Still selectable with --v 7; use it for --oref (omni reference), --q 2/4 or Turbo mode.', 'Put words to render "in quotes".'],
+          native: d => midjourneyNative(d, 'v7') },
+        niji_7:                 { label: 'Midjourney Niji 7 (anime)', status: 'current', limits: { transparency: false },
+          notes: ['Anime/illustration model (launched 2026-01) — name the anime sub-style, line quality and shading.'],
+          native: d => midjourneyNative(d, 'niji7') },
+        flux_2_pro:             { label: 'FLUX.2 [pro] (Black Forest Labs)', status: 'current', limits: { negative_prompt: false, max_refs: 10 },
+          notes: ['Accepts structured JSON prompts — this builder\'s JSON output works directly.', 'Exact brand colours: give hex codes.', 'Up to 10 reference images for multi-reference editing.', 'No negative prompt: describe what you want instead.'] },
+        flux_2_max:             { label: 'FLUX.2 [max] (Black Forest Labs)', status: 'current', limits: { negative_prompt: false, max_refs: 10 },
+          notes: ['Highest-quality FLUX.2 tier, up to 4MP.', 'Accepts structured JSON prompts and hex colours.'] },
+        flux_2_flex:            { label: 'FLUX.2 [flex] (Black Forest Labs)', status: 'current', limits: { negative_prompt: false, max_refs: 10 },
+          notes: ['Exposes steps/guidance for fine control; strongest FLUX.2 tier for typography.'] },
+        flux_2_dev_local:       { label: 'FLUX.2 [dev] — local, open weights (32B)', status: 'current', limits: { negative_prompt: false, max_refs: 6 },
+          notes: ['Runs in ComfyUI; 6 reference images recommended.', 'Guidance-distilled: CFG/negative prompts have little effect — describe positively.'],
+          native: localDiffusionNative(1) },
+        flux_2_klein_local:     { label: 'FLUX.2 [klein] — local 4B/9B (consumer GPUs)', status: 'current', limits: { negative_prompt: false, max_refs: 4 },
+          notes: ['Small, fast local model; keep prompts concise and concrete.'],
+          native: localDiffusionNative(1) },
+        flux_3_early_access:    { label: 'FLUX 3 (Black Forest Labs, gated early access)', status: 'early_access',
+          notes: ['Announced 2026-07-23 as one multimodal model (image, video, audio); the public image API is not out yet.', 'Treat parameters as provisional — check BFL docs before relying on them.'] },
+        ideogram_4:             { label: 'Ideogram 4.0 (open weights)', status: 'current',
+          notes: ['Best-in-class text rendering: quote every word and describe typography.', 'Supports JSON prompting and bounding-box layout — use Text Layout / Placement fields.', 'Native transparent backgrounds.'] },
+        recraft_v4_1:           { label: 'Recraft V4.1', status: 'current',
+          notes: ['Can output true SVG vectors — set Output Format to svg_vector for logos and icons.', 'Name the brand style, colour palette (hex) and stroke/fill treatment.'] },
+        seedream_5_pro:         { label: 'Seedream 5.0 Pro (ByteDance)', status: 'current',
+          notes: ['Can return 10+ editable PNG layers — set Output Format to layered_png_psd.', 'Reads spatial annotations on reference images; text in ~14 languages.'] },
+        seedream_5_lite:        { label: 'Seedream 5.0 Lite (ByteDance)', status: 'current',
+          notes: ['Cheaper Seedream tier with reasoning; good for drafts.'] },
+        qwen_image_2_1:         { label: 'Qwen-Image-2.1 (Alibaba, open weights)', status: 'current', limits: { max_refs: 10 },
+          notes: ['One model for generation and editing; real alpha-channel output.', 'Strong bilingual (EN/ZH) typography.'],
+          native: localDiffusionNative(1) },
+        hidream_o1:             { label: 'HiDream-O1-Image (open, 8B)', status: 'current',
+          notes: ['Pixel-space model up to 2048². Full model: ~50 steps, CFG 5.0. Dev variant: 28 steps, CFG 0 (no negative prompt).'],
+          native: localDiffusionNative(1) },
+        firefly_image_5:        { label: 'Adobe Firefly Image 5', status: 'current',
+          notes: ['Commercially safe training data; native 4MP.', 'Instruction-based edits via Generative Fill; Firefly also hosts partner models (GPT Image, FLUX.2).'] },
+        grok_imagine_image_2:   { label: 'Grok Imagine Image 2.0 (xAI)', status: 'current',
+          notes: ['Very fast generations with good text rendering; iterate quickly with short prompts.'] },
+        hunyuan_image_3:        { label: 'HunyuanImage 3.0 / 3.0-Instruct (Tencent, open)', status: 'current',
+          notes: ['80B MoE with strong world knowledge; Instruct adds editing and multi-image fusion.'] },
+        krea_2:                 { label: 'Krea 2 (open weights)', status: 'current',
+          notes: ['Strong style control and style mixing — name styles explicitly and weight them in words.'] },
+        leonardo_phoenix:       { label: 'Leonardo Phoenix 1.0', status: 'current',
+          notes: ['Good prompt adherence and in-image text; use Leonardo\'s style presets for consistency.'] },
+        leonardo_lucid:         { label: 'Leonardo Lucid Origin / Lucid Realism', status: 'current',
+          notes: ['Lucid Realism for photoreal people/products; Lucid Origin for vibrant, design-led images.'] },
+        luma_uni_1_1:           { label: 'Luma UNI-1.1', status: 'current', limits: { max_refs: 9 },
+          notes: ['Up to 9 reference images; pairs with Luma Ray for image-to-video.'] },
+        sd_3_5_local:           { label: 'Stable Diffusion 3.5 Large / Medium (local)', status: 'current', limits: { negative_prompt: true },
+          notes: ['Supports negative prompts and (word:1.2) weighting in A1111/Forge; ~1MP native.', 'Use the Local Diffusion section — its values are emitted as ready-to-paste infotext.'],
+          native: localDiffusionNative(1) },
+        sdxl_local:             { label: 'SDXL + fine-tunes (local)', status: 'legacy', limits: { negative_prompt: true },
+          notes: ['Huge LoRA/checkpoint ecosystem; 1024² native. Use tag-style prompts for anime fine-tunes, sentences for base.'],
+          native: localDiffusionNative(1) },
+      },
+      video: {
+        gemini_omni_flash:      { label: 'Gemini Omni Flash (Google default video model)', status: 'current', api_model_id: 'gemini-omni-1.1-flash', limits: { min_duration: 3, max_duration: 10, resolutions: ['720p', '1080p', '4K'], aspect_ratios: ['16:9', '9:16'], negative_prompt: false, native_audio: true },
+          notes: ['Accepts text, image, audio and video input — describe how each input should be used.', 'Generates 3–10 s per turn; extend by up to 10 s per turn (40 s total). 1080p/4K are upscaled from 720p.', 'Stateful multi-turn editing: generate first, then refine in follow-up turns.', 'No negative prompt: write exclusions into the prompt text.'] },
+        veo_3_1:                { label: 'Veo 3.1 / 3.1 Fast / 3.1 Lite (Google)', status: 'current', api_model_id: 'veo-3.1-generate-preview', limits: { durations: [4, 6, 8], resolutions: ['720p', '1080p', '4K'], aspect_ratios: ['16:9', '9:16'], max_refs: 3, native_audio: true, negative_prompt: false },
+          notes: ['Clips are 4, 6 or 8 seconds; 1080p, 4K and reference images require 8 s. Extend in 7 s steps (720p) for longer shots.', 'Write dialogue in quotes with the speaker named; describe SFX and ambience separately.', 'Up to 3 reference images; first/last-frame control supported.'] },
+        kling_3_0:              { label: 'Kling 3.0 (Kuaishou)', status: 'current', limits: { min_duration: 3, max_duration: 15, native_audio: true },
+          notes: ['Pick an exact 3–15 s length at 720p/1080p (16:9, 9:16, 1:1). Supports negative prompts.', 'Native lip-synced audio in EN/ZH/JA/KO/ES.'] },
+        kling_3_0_omni:         { label: 'Kling 3.0 Omni (Kuaishou)', status: 'current', limits: { min_duration: 3, max_duration: 15, native_audio: true, max_refs: 7, negative_prompt: false },
+          notes: ['Unified generate + edit model: up to 7 reference images/elements, or 4 images + one 3–10 s video.', 'Only Omni supports video element reference, element voice control and multi-shot.'] },
+        kling_3_0_turbo:        { label: 'Kling 3.0 Turbo (Kuaishou)', status: 'current', limits: { min_duration: 3, max_duration: 15, native_audio: true },
+          notes: ['Faster/cheaper Kling tier for iteration.'] },
+        kling_motion_control_v3:{ label: 'Kling Motion Control v3', status: 'current',
+          notes: ['Transfers motion from a 3–30 s reference video onto a character image — fill Motion Reference Video in the Shots section.'] },
+        runway_gen_4_5:         { label: 'Runway Gen-4.5', status: 'current', limits: { min_duration: 2, max_duration: 10 },
+          notes: ['Text-to-video is 16:9 at 1280x720; image-to-video supports 6 ratios.', 'Motion Brush no longer exists — describe motion in text.', 'Use Act-Two for performance capture.'] },
+        runway_aleph_2:         { label: 'Runway Aleph 2.0 (video editing)', status: 'current', limits: { min_duration: 2, max_duration: 30 },
+          notes: ['Edits an existing 2–30 s clip (480p–1080p): set Edit Mode and describe the change, not the whole scene.'] },
+        luma_ray_3_2:           { label: 'Luma Ray3.2', status: 'current', limits: { max_duration: 20 },
+          notes: ['Up to 20 s at 1080p with native 16-bit HDR/EXR export.', 'Up to 16 keyframes; Modify Video and Reframe for edits.'] },
+        seedance_2_5:           { label: 'Seedance 2.5 (ByteDance)', status: 'current', limits: { min_duration: 4, max_duration: 30, max_refs: 30 },
+          notes: ['Single takes up to 30 s (plus extensions); up to 30 images, 10 videos and 10 audio references.', 'Cite uploaded media as @Image1, @Video1, @Audio1 in upload order (see native_parameters).'],
+          native: d => seedanceNative(d) },
+        seedance_2_0:           { label: 'Seedance 2.0 / 2.0 Fast (ByteDance)', status: 'current', limits: { min_duration: 4, max_duration: 15, max_refs: 9 },
+          notes: ['Up to 9 images, 3 videos and 3 audio files as references.', 'Cite uploaded media as @Image1, @Video1, @Audio1 in upload order (see native_parameters).'],
+          native: d => seedanceNative(d) },
+        minimax_h3:             { label: 'MiniMax H3 / Hailuo 3.0', status: 'current', limits: { min_duration: 4, max_duration: 15, resolutions: ['480p', '720p', '1080p', '1440p'], native_audio: true },
+          notes: ['Multi-shot generation up to 2K with native stereo audio.'] },
+        wan_3_0:                { label: 'Wan 3.0 (Alibaba)', status: 'current', limits: { max_duration: 30, native_audio: true },
+          notes: ['Up to 30 s at 1080p with audio; can build video from documents (PDF/PPT).'] },
+        wan_2_2_local:          { label: 'Wan 2.2 (open weights, local)', status: 'current', limits: { native_audio: false },
+          notes: ['Runs in ComfyUI; short clips — chain generations for longer sequences.'] },
+        ltx_2_5:                { label: 'LTX-2.5 (Lightricks, open weights)', status: 'current', limits: { native_audio: true },
+          notes: ['Native multi-shot, up to 4K and 50 fps with synchronized audio; runs locally.'] },
+        vidu_q3:                { label: 'Vidu Q3 (ShengShu)', status: 'current', limits: { max_duration: 16, native_audio: true },
+          notes: ['Up to 16 s at 1080p; strong multi-reference consistency.'] },
+        grok_imagine_video_1_5: { label: 'Grok Imagine Video 1.5 (xAI)', status: 'current', limits: { min_duration: 1, max_duration: 15, resolutions: ['480p', '720p', '1080p'], native_audio: true },
+          notes: ['Audio is generated in the same pass — describe it alongside the visuals.'] },
+        midjourney_video_v1:    { label: 'Midjourney Video', status: 'current', limits: { max_duration: 21, resolutions: ['480p', '720p'], native_audio: false },
+          notes: ['Image-to-video: 5 s base, up to 4 extensions of 4 s (21 s max); SD 480p or HD 720p.', 'Use --end for a different end frame; --video when the start image is an external URL.'],
+          native: d => midjourneyVideoNative(d) },
+        moonvalley_marey:       { label: 'Moonvalley Marey', status: 'current',
+          notes: ['Trained only on licensed footage — suited to commercial work; strong camera control.'] },
+        pika:                   { label: 'Pika 2.5', status: 'current',
+          notes: ['Relaunched app with sound generation; best for short social clips and effects.'] },
+        hunyuan_video_1_5_local:{ label: 'HunyuanVideo 1.5 (Tencent, open, local)', status: 'current', limits: { min_duration: 5, max_duration: 10 },
+          notes: ['8.3B open model; 5–10 s clips upscaled to 1080p.'] },
+        firefly_video:          { label: 'Adobe Firefly Video (+ partner models)', status: 'current',
+          notes: ['Commercially safe Adobe model; Firefly also hosts Kling, Luma Ray, Runway and Veo.'] },
+      },
+      llm: {
+        claude_fable_5_1:  { label: 'Claude Fable 5.1 (Anthropic, most capable)', status: 'current', api_model_id: 'claude-fable-5-1',
+          notes: ['Wrap context, documents and examples in XML tags (<context>, <example>).', 'State the goal and success criteria explicitly; it follows instructions literally.', 'Use extended thinking / effort controls for hard problems instead of "think step by step".'] },
+        claude_opus_5_5:   { label: 'Claude Opus 5.5 (Anthropic)', status: 'current', api_model_id: 'claude-opus-5-5',
+          notes: ['Wrap context, documents and examples in XML tags.', 'Excellent for long agentic and coding tasks; give it the full context up front.'] },
+        claude_sonnet_5:   { label: 'Claude Sonnet 5 (Anthropic)', status: 'current', api_model_id: 'claude-sonnet-5',
+          notes: ['Balanced speed/intelligence; XML-tagged structure works best.'] },
+        claude_haiku_4_5:  { label: 'Claude Haiku 4.5 (Anthropic, fastest)', status: 'current', api_model_id: 'claude-haiku-4-5-20251001',
+          notes: ['Keep prompts tight and give 1–3 examples; best for classification, extraction and routing.'] },
+        gpt_6_astra:       { label: 'GPT-6 Astra (OpenAI)', status: 'current', api_model_id: 'gpt-6-astra',
+          notes: ['Use Markdown headings to separate instructions, context and output spec.', 'Set reasoning effort for hard problems; request Structured Outputs for JSON.'] },
+        gpt_6_sol:         { label: 'GPT-6 Sol (OpenAI)', status: 'current',
+          notes: ['Use Markdown headings to separate instructions, context and output spec.'] },
+        gpt_6_luna:        { label: 'GPT-6 Luna (OpenAI)', status: 'current',
+          notes: ['Lighter GPT-6 tier: keep prompts concise with explicit output format.'] },
+        gpt_5_6:           { label: 'GPT-5.6 (OpenAI)', status: 'legacy',
+          notes: ['Still available; Markdown-structured prompts and explicit output format work best.'] },
+        gemini_3_8_flash:  { label: 'Gemini 3.8 Flash (Google)', status: 'current',
+          notes: ['Put long documents first and the question last.', 'Set the thinking level for reasoning-heavy tasks; use response schemas for JSON.'] },
+        gemini_3_1_pro:    { label: 'Gemini 3.1 Pro (Google)', status: 'current',
+          notes: ['Strong long-context and multimodal reasoning; put documents before instructions.'] },
+        grok_4:            { label: 'Grok 4.7 / 4.6 (xAI)', status: 'current', api_model_id: 'grok-4.7',
+          notes: ['Has live X/web search — say whether it should browse and how recent sources must be.'] },
+        deepseek_v4:       { label: 'DeepSeek V4 (open weights)', status: 'current',
+          notes: ['Give explicit output format; for reasoning mode avoid few-shot examples that constrain its thinking.'] },
+        qwen_3_8:          { label: 'Qwen 3.8 (Alibaba, open weights)', status: 'current',
+          notes: ['Supports thinking and non-thinking modes; say which you want.'] },
+        kimi_k3:           { label: 'Kimi K3 (Moonshot, open weights)', status: 'current',
+          notes: ['Strong agentic/tool-use model; describe tools and stopping criteria explicitly.'] },
+        glm_5_3:           { label: 'GLM-5.3 (Zhipu, open weights)', status: 'current',
+          notes: ['Good coding/agent model; keep system instructions short and specific.'] },
+        llama_4:           { label: 'Llama 4 (Meta, open weights)', status: 'current',
+          notes: ['Use the chat template of your runtime (Ollama, vLLM); be explicit about format.'] },
+        mistral:           { label: 'Mistral (Large / Small 4)', status: 'current',
+          notes: ['Concise system prompts; request JSON mode for structured output.'] },
+        local_other:       { label: 'Other local model (Ollama / LM Studio)', status: 'current',
+          notes: ['Smaller models need shorter prompts, one task at a time, and a concrete example of the output.'] },
+      },
+    };
+    const isSet = v => v !== undefined && v !== '' && v !== null;
+    const midjourneyNative = (d, variant) => {
+      const flags = [];
+      if (d['meta.aspect_ratio']) flags.push(`--ar ${d['meta.aspect_ratio']}`);
+      if (variant === 'v7') flags.push('--v 7');
+      if (variant === 'niji7') flags.push('--niji 7');
+      if (d['meta.quality'] === 'raw') flags.push('--raw');
+      if (variant === 'v8' && ['2K', '4K'].includes(d['meta.resolution'])) flags.push('--hd');
+      if (isSet(d['model_params.stylize'])) flags.push(`--s ${d['model_params.stylize']}`);
+      if (isSet(d['model_params.chaos'])) flags.push(`--chaos ${d['model_params.chaos']}`);
+      if (isSet(d['model_params.weird'])) flags.push(`--weird ${d['model_params.weird']}`);
+      if (isSet(d['model_params.experimental'])) flags.push(`--exp ${d['model_params.experimental']}`);
+      if (d['reference.mode'] === 'style_reference' && d['reference.image_url']) {
+        flags.push(`--sref ${d['reference.image_url']}`);
+        if (isSet(d['model_params.style_ref_weight'])) flags.push(`--sw ${d['model_params.style_ref_weight']}`);
+      }
+      if (variant === 'v7' && d['reference.mode'] === 'character_reference' && d['reference.image_url']) flags.push(`--oref ${d['reference.image_url']}`);
+      if (variant === 'v8' && ['character_reference', 'instruction_edit', 'multi_reference'].includes(d['reference.mode']) && d['reference.image_url']) flags.push(`--edit ${d['reference.image_url']}`);
+      if (d['model_params.personalization']) flags.push(`--p ${d['model_params.personalization']}`);
+      if (d['advanced.tiling'] === true) flags.push('--tile');
+      if (isSet(d['meta.seed'])) flags.push(`--seed ${d['meta.seed']}`);
+      if (d['advanced.negative_prompt']) flags.push(`--no ${d['advanced.negative_prompt']}`);
+      return flags.join(' ') || null;
+    };
+    const midjourneyVideoNative = d => {
+      const flags = [];
+      if (['low', 'high'].includes(d['motion.intensity'])) flags.push(`--motion ${d['motion.intensity']}`);
+      if (d['motion.loop'] === true) flags.push('--loop');
+      else if (d['shots.last_frame']) flags.push("--end ${d['shots.last_frame']}");
+      if (d['meta.quality'] === 'raw') flags.push('--raw');
+      return flags.join(' ') || null;
+    };
+    const splitLines = text => (typeof text === 'string' ? text.split('\n').map(s => s.trim()).filter(Boolean) : []);
+    const seedanceNative = d => {
+      const refs = [['Image', splitLines(d['shots.reference_images'])], ['Video', splitLines(d['shots.reference_videos'])], ['Audio', splitLines(d['shots.reference_audio'])]]
+        .flatMap(([kind, items]) => items.map((item, i) => `@${kind}${i + 1} = ${item}`));
+      return refs.length ? `Upload in this order and cite the tokens in the prompt text:\n${refs.join('\n')}` : null;
+    };
+    const GUIDANCE_SKIP = ['', 'none', 'ask_me', 'best_fit'];
+    const modelGuidance = (profile, d) => {
+      const limits = profile.limits || {};
+      const has = key => isSet(d[key]) && !(typeof d[key] === 'string' && GUIDANCE_SKIP.includes(d[key]));
+      const warnings = [];
+      if (limits.aspect_ratios && has('meta.aspect_ratio') && !limits.aspect_ratios.includes(d['meta.aspect_ratio']))
+        warnings.push(`Aspect ratio ${d['meta.aspect_ratio']} is not supported; use ${limits.aspect_ratios.join(', ')}.`);
+      if (limits.resolutions && has('meta.resolution') && !limits.resolutions.includes(d['meta.resolution']))
+        warnings.push(`Resolution ${d['meta.resolution']} is not supported; use ${limits.resolutions.join(', ')}.`);
+      const seconds = has('meta.duration') ? parseFloat(d['meta.duration']) : NaN;
+      if (Number.isFinite(seconds)) {
+        if (limits.durations && !limits.durations.includes(seconds)) warnings.push(`Duration ${d['meta.duration']} is not available; clips are ${limits.durations.join(', ')} s — extend or stitch for longer.`);
+        if (limits.max_duration && seconds > limits.max_duration) warnings.push(`Duration ${d['meta.duration']} exceeds the ${limits.max_duration} s maximum — extend or stitch clips.`);
+        if (limits.min_duration && seconds < limits.min_duration) warnings.push(`Duration ${d['meta.duration']} is below the ${limits.min_duration} s minimum.`);
+      }
+      if (limits.hd_max_ratio && ['2K', '4K'].includes(d['meta.resolution']) && has('meta.aspect_ratio')) {
+        const [w, h] = d['meta.aspect_ratio'].split(':').map(Number);
+        if (Math.max(w / h, h / w) > limits.hd_max_ratio) warnings.push(`--hd limits aspect ratio to ${limits.hd_max_ratio}:1 — choose a narrower ratio or drop to standard resolution.`);
+      }
+      if (limits.negative_prompt === false && has('advanced.negative_prompt'))
+        warnings.push('No negative-prompt input: rewrite the exclusions as positive constraints (e.g., "sharp focus, clean background").');
+      const refCount = Math.max(typeof d['reference.reference_count'] === 'number' ? d['reference.reference_count'] : 0, splitLines(d['shots.reference_images']).length);
+      if (limits.max_refs && refCount > limits.max_refs) warnings.push(`${refCount} reference images exceeds the ${limits.max_refs}-image limit.`);
+      if (limits.transparency === false && d['output.transparent_background'] === true)
+        warnings.push('No native transparency: generate on a flat solid background and remove it afterwards.');
+      if (limits.native_audio === false && d['audio.native_audio'] === true)
+        warnings.push('Generates silent video: add music, SFX and dialogue in post.');
+      const native = profile.native ? profile.native(d) : null;
+      return { target_model: profile.label, ...(profile.status !== 'current' ? { model_status: profile.status } : {}),
+        ...(profile.api_model_id ? { api_model_id: profile.api_model_id } : {}),
+        prompting_notes: [...profile.notes], ...(native ? { native_parameters: native } : {}),
+        ...(warnings.length ? { compatibility_warnings: warnings } : {}) };
+    };
+    const profileOptions = type => Object.keys(MODEL_PROFILES[type]);
+    const profileLabels = type => Object.fromEntries(Object.entries(MODEL_PROFILES[type]).map(([id, p]) => [id, p.label]));
+
     const IMAGE_SCHEMA = {
       user_intent: { type: 'textarea', label: 'What do you want to create?', placeholder: 'Describe your vision in plain English...', section: 'intent' },
       // Meta
-      'meta.aspect_ratio': { type: 'select', label: 'Aspect Ratio', options: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9', '3:2', '2:1', '5:4'], default: '16:9', section: 'meta' },
-      'meta.quality': { type: 'select', label: 'Render Quality', options: ['ultra', 'high', 'standard', 'draft', 'raw'], default: 'high', placeholder: 'Fidelity/detail level. Artistic look is set under Style → Artistic Medium.', section: 'meta' },
+      'meta.target_model': { type: 'select', label: 'Target Model', options: profileOptions('image'), optionLabels: profileLabels('image'), modelProfiles: 'image', placeholder: 'Adds model-specific tips, limit warnings and native syntax (e.g. Midjourney flags) to the output.', section: 'meta' },
+      'meta.aspect_ratio': { type: 'select', label: 'Aspect Ratio', options: ['16:9', '9:16', '1:1', '4:3', '3:4', '3:2', '2:3', '4:5', '5:4', '21:9', '2:1', '1:2', '4:1', '1:4', '8:1', '1:8'], default: '16:9', section: 'meta' },
+      'meta.resolution': { type: 'select', label: 'Output Resolution', options: ['', '512', '1K', '2K', '4K'], placeholder: 'Nano Banana uses 512/1K/2K/4K; Midjourney 2K = --hd.', section: 'meta' },
+      'meta.quality': { type: 'select', label: 'Render Quality', options: ['ultra', 'high', 'standard', 'draft', 'raw'], default: 'high', placeholder: 'Fidelity/detail level. "raw" = literal, less-stylized (Midjourney --raw). Artistic look is set under Style → Artistic Medium.', section: 'meta' },
+      'meta.image_count': { type: 'select', label: 'Number of Images / Variations', options: ['', '1', '2', '4', '8'], section: 'meta' },
       'meta.seed': { type: 'number', label: 'Seed (for reproducibility)', placeholder: 'Random if empty', section: 'meta' },
+      // Output
+      'output.format': { type: 'select', label: 'Output Format', options: ['', 'raster_png', 'raster_jpeg', 'raster_webp', 'svg_vector', 'layered_png_psd'], placeholder: 'svg_vector: Recraft. layered_png_psd: Seedream 5.0 Pro.', section: 'output' },
+      'output.transparent_background': { type: 'checkbox', label: 'Transparent background (alpha)', section: 'output' },
+      'output.use_case': { type: 'select', label: 'Intended Use', options: ['', 'social_post', 'ad_creative', 'product_listing', 'website_hero', 'thumbnail', 'poster_print', 'logo_icon', 'infographic', 'concept_art', 'storyboard_frame', 'texture_asset', 'video_first_frame'], section: 'output' },
       // Subject
       'subject.type': { type: 'select', label: 'Subject Type', options: ['person', 'animal', 'cyborg', 'monster', 'robot', 'vehicle', 'object', 'landscape', 'architecture', 'food', 'plant', 'abstract'], default: 'person', section: 'subject' },
       'subject.name': { type: 'text', label: 'Name (if famous)', placeholder: 'e.g., Batman, Pikachu', section: 'subject' },
@@ -72,7 +345,7 @@
       'scene.lighting_direction': { type: 'select', label: 'Light Direction', options: ['front_lit', 'back_lit', 'side_lit', 'top_down', 'rim_light', 'silhouette', 'under_lit'], default: 'front_lit', section: 'scene' },
       'scene.background_elements': { type: 'text', label: 'Background Elements', placeholder: 'e.g., flying cars, cherry blossoms, neon signs', section: 'scene' },
       // Technical
-      'technical.camera_model': { type: 'select', label: 'Camera Model', options: ['', 'iPhone 17 Pro', 'Samsung Galaxy S25 Ultra', 'Sony A7R V', 'Leica M11', 'Canon EOS R5', 'Hasselblad X2D', 'Polaroid', 'GoPro', 'CCTV'], section: 'technical' },
+      'technical.camera_model': { type: 'select', label: 'Camera Model', options: ['', 'iPhone 17 Pro', 'Samsung Galaxy S25 Ultra', 'Sony A7R V', 'Sony A1 II', 'Leica M11', 'Canon EOS R5', 'Nikon Z8', 'Fujifilm GFX100 II', 'Hasselblad X2D', 'ARRI Alexa 35', 'RED V-Raptor', 'Polaroid', 'disposable_camera', 'GoPro', 'DJI drone', 'CCTV'], section: 'technical' },
       'technical.lens': { type: 'select', label: 'Lens', options: ['16mm', '24mm', '35mm', '50mm', '85mm', '105mm', '200mm', 'macro_100mm', 'fisheye_8mm'], default: '50mm', section: 'technical' },
       'technical.aperture': { type: 'select', label: 'Aperture', options: ['f/1.2', 'f/1.4', 'f/1.8', 'f/2.8', 'f/4.0', 'f/5.6', 'f/8.0', 'f/11', 'f/16'], default: 'f/2.8', section: 'technical' },
       'technical.shutter_speed': { type: 'select', label: 'Shutter Speed', options: ['1/8000', '1/4000', '1/1000', '1/500', '1/250', '1/125', '1/60', '1/30', '1s', 'long_exposure'], default: '1/250', section: 'technical' },
@@ -100,6 +373,8 @@
       'text.effect': { type: 'multiselect', label: 'Text Visual Effect', options: ['glow', 'drop_shadow', 'outline', 'emboss', 'distressed', 'metallic_chrome', 'neon_glow', 'fire', 'ice_frost', 'gold_foil', 'grunge_worn', 'glitch', 'holographic', 'smoke'], section: 'text', condition: 'text.enabled' },
       'text.integration': { type: 'select', label: 'Surface Integration', options: ['floating', 'carved_into_surface', 'painted_on', 'projected_light', 'embossed', 'burned_in', 'spray_painted', 'tattooed', 'engraved_metal', 'printed_label', 'etched_glass', 'neon_tube_mounted', 'chalk_on_blackboard', 'sand_writing'], section: 'text', condition: 'text.enabled' },
       'text.script': { type: 'select', label: 'Script / Language System', options: ['latin', 'japanese_kanji', 'arabic', 'cyrillic', 'hebrew', 'korean_hangul', 'chinese_simplified', 'greek', 'runic', 'elvish_tengwar', 'hieroglyphic_style', 'cuneiform_style', 'binary', 'morse_code_visual'], section: 'text', condition: 'text.enabled' },
+      'text.layout': { type: 'textarea', label: 'Text Layout / Hierarchy', placeholder: 'e.g., headline top-center (~15% height), 3 bullet callouts on the right, small legal line bottom-left', section: 'text', condition: 'text.enabled' },
+      'text.exact_spelling': { type: 'checkbox', label: 'Render text exactly as written (no paraphrasing, check spelling)', default: true, section: 'text', condition: 'text.enabled' },
       // Advanced
       'advanced.negative_prompt': { type: 'textarea', label: 'Negative Prompt (things to avoid)', default: 'blur, low quality, distortion, watermark, bad hands, extra fingers, mutated', section: 'advanced' },
       'advanced.magic_prompt_enhancer': { type: 'checkbox', label: 'Magic Prompt Enhancer', default: true, section: 'advanced' },
@@ -111,16 +386,31 @@
       'advanced.style_transfer_strength': { type: 'select', label: 'Style Transfer Strength', options: ['', 'subtle', 'moderate', 'strong', 'maximum'], section: 'advanced' },
       'advanced.upscale_mode': { type: 'select', label: 'Upscale Mode', options: ['none', '2x', '4x', 'face_enhance', 'creative_upscale'], default: 'none', section: 'advanced' },
       'advanced.mood_override': { type: 'select', label: 'Mood Override', options: ['', 'ethereal', 'gritty', 'clean', 'dark_and_moody', 'bright_and_airy', 'vibrant', 'muted_melancholy', 'tense', 'peaceful', 'epic', 'intimate'], section: 'advanced' },
-      // Reference & consistency — image-to-image, character refs, style refs (Midjourney --cref, Nano Banana 2, GPT Image)
-      'reference.mode': { type: 'select', label: 'Reference Mode', options: ['none', 'image_to_image', 'character_reference', 'style_reference', 'inpaint', 'outpaint'], default: 'none', section: 'reference' },
-      'reference.image_url': { type: 'text', label: 'Reference Image (URL or note)', placeholder: 'Paste a reference/source image URL or describe it', section: 'reference' },
+      // Reference & consistency — image-to-image, multi-reference, character/style refs, instruction edits
+      'reference.mode': { type: 'select', label: 'Reference Mode', options: ['none', 'image_to_image', 'multi_reference', 'character_reference', 'style_reference', 'instruction_edit', 'sketch_to_image', 'inpaint', 'outpaint'], default: 'none', section: 'reference' },
+      'reference.image_url': { type: 'text', label: 'Primary Reference Image (URL or note)', placeholder: 'Paste a reference/source image URL or describe it', section: 'reference' },
+      'reference.additional_refs': { type: 'textarea', label: 'Additional References (one per line)', placeholder: 'Image 2 — product packshot (keep label exact)\nImage 3 — brand colour swatch\nImage 4 — pose reference', section: 'reference' },
+      'reference.reference_count': { type: 'number', label: 'Total Reference Images', placeholder: 'Checked against the target model limit', min: 0, max: 50, section: 'reference' },
       'reference.strength': { type: 'select', label: 'Reference Strength', options: ['', 'subtle', 'moderate', 'strong', 'maximum'], section: 'reference' },
+      'reference.edit_instruction': { type: 'textarea', label: 'Edit Instruction', placeholder: 'e.g., change the jacket to red leather, keep face, pose and lighting identical', section: 'reference' },
+      'reference.preserve': { type: 'multiselect', label: 'Must Preserve', options: ['face_identity', 'pose', 'composition', 'lighting', 'colors', 'text_and_logos', 'product_shape', 'background'], section: 'reference' },
       'reference.character_consistency': { type: 'text', label: 'Character Consistency Notes', placeholder: 'e.g., keep the same face/identity across shots', section: 'reference' },
+      // Model-specific knobs — emitted as native flags for Midjourney, ignored by other models
+      'model_params.stylize': { type: 'number', label: 'Stylize (--s, 0–1000)', placeholder: 'Midjourney default 100', min: 0, max: 1000, section: 'model_params' },
+      'model_params.chaos': { type: 'number', label: 'Chaos / Variety (--chaos, 0–100)', min: 0, max: 100, section: 'model_params' },
+      'model_params.weird': { type: 'number', label: 'Weird (--weird, 0–3000)', min: 0, max: 3000, section: 'model_params' },
+      'model_params.experimental': { type: 'number', label: 'Experimental aesthetics (--exp, 0–100)', min: 0, max: 100, section: 'model_params' },
+      'model_params.style_ref_weight': { type: 'number', label: 'Style Reference Weight (--sw, 0–1000)', min: 0, max: 1000, section: 'model_params' },
+      'model_params.personalization': { type: 'text', label: 'Personalization / Moodboard Code (--p)', placeholder: 'e.g., your profile or moodboard code', section: 'model_params' },
       // Local diffusion (Stable Diffusion / A1111 / ComfyUI) — these knobs are ignored by API models (Gemini, Midjourney, GPT Image)
+      'sd_local.model_family': { type: 'select', label: 'Local Model / Checkpoint Family', options: ['', 'sd_3_5_large', 'sd_3_5_medium', 'sdxl', 'flux_2_dev', 'flux_2_klein', 'qwen_image', 'hidream_o1', 'hunyuan_image_3', 'krea_2', 'other_checkpoint'], section: 'sd_local' },
+      'sd_local.lora': { type: 'text', label: 'LoRA(s) + weight', placeholder: 'e.g., <lora:filmgrain_v2:0.7>, product_photo_xl:0.5', section: 'sd_local' },
+      'sd_local.prompt_weighting': { type: 'checkbox', label: 'Use (word:1.2) prompt weighting syntax', section: 'sd_local' },
+      'sd_local.scheduler': { type: 'select', label: 'Scheduler', options: ['', 'Karras', 'Exponential', 'SGM Uniform', 'Simple', 'Beta', 'Normal'], section: 'sd_local' },
       'sd_local.steps': { type: 'number', label: 'Steps (10-100)', default: 40, min: 10, max: 100, section: 'sd_local' },
       'sd_local.guidance_scale': { type: 'number', label: 'Guidance Scale / CFG (1-20)', default: 7.5, min: 1, max: 20, step: 0.5, section: 'sd_local' },
       'sd_local.denoise_strength': { type: 'number', label: 'Denoise Strength (0.0–1.0)', default: 0.75, min: 0, max: 1, step: 0.05, section: 'sd_local' },
-      'sd_local.sampler': { type: 'select', label: 'Sampler', options: ['Euler_a', 'DPM++_2M_Karras', 'DPM++_SDE_Karras', 'DDIM', 'UniPC', 'LMS', 'Heun', 'DPM_adaptive'], default: 'DPM++_2M_Karras', section: 'sd_local' },
+      'sd_local.sampler': { type: 'select', label: 'Sampler', options: ['Euler', 'Euler_a', 'DPM++_2M', 'DPM++_2M_Karras', 'DPM++_2M_SDE', 'DPM++_3M_SDE', 'DPM++_SDE_Karras', 'DDIM', 'UniPC', 'LCM', 'LMS', 'Heun', 'DPM_adaptive'], default: 'DPM++_2M_Karras', section: 'sd_local' },
       'sd_local.clip_skip': { type: 'select', label: 'CLIP Skip', options: ['1', '2', '3'], default: '1', section: 'sd_local' },
       'sd_local.controlnet_hint': { type: 'text', label: 'ControlNet Hint', placeholder: 'e.g., pose reference, depth map, canny edges', section: 'sd_local' },
     };
@@ -128,24 +418,49 @@
     const VIDEO_SCHEMA = {
       ...IMAGE_SCHEMA,
       // Override/Add video-specific fields
-      'meta.duration': { type: 'select', label: 'Duration', options: ['5s', '10s', '15s', '30s', '60s'], default: '10s', section: 'meta' },
-      'meta.fps': { type: 'select', label: 'Frame Rate', options: ['24fps', '30fps', '60fps'], default: '24fps', section: 'meta' },
-      'meta.resolution': { type: 'select', label: 'Resolution', options: ['720p', '1080p', '4K'], default: '1080p', section: 'meta' },
+      'meta.target_model': { type: 'select', label: 'Target Model', options: profileOptions('video'), optionLabels: profileLabels('video'), modelProfiles: 'video', placeholder: 'Adds model-specific tips, duration/resolution warnings and native syntax to the output.', section: 'meta' },
+      'meta.aspect_ratio': { type: 'select', label: 'Aspect Ratio', options: ['16:9', '9:16', '1:1', '4:3', '3:4', '4:5', '21:9', '2.39:1'], default: '16:9', section: 'meta' },
+      'meta.duration': { type: 'select', label: 'Duration', options: ['3s', '4s', '5s', '6s', '8s', '10s', '12s', '15s', '20s', '30s', '60s'], default: '10s', section: 'meta' },
+      'meta.fps': { type: 'select', label: 'Frame Rate', options: ['23.976fps', '24fps', '25fps', '30fps', '50fps', '60fps'], default: '24fps', section: 'meta' },
+      'meta.resolution': { type: 'select', label: 'Resolution', options: ['480p', '720p', '1080p', '1440p', '4K'], default: '1080p', section: 'meta' },
+      'meta.hdr_output': { type: 'checkbox', label: 'HDR / EXR output (Luma Ray3.x)', section: 'meta' },
       // Motion
-      'motion.camera_movement': { type: 'select', label: 'Camera Movement', options: ['static', 'slow_pan_left', 'slow_pan_right', 'slow_dolly_in', 'slow_dolly_out', 'tracking_shot', 'crane_up', 'crane_down', 'handheld', 'orbit'], default: 'static', section: 'motion' },
+      'motion.camera_movement': { type: 'select', label: 'Camera Movement', options: ['static', 'slow_pan_left', 'slow_pan_right', 'tilt_up', 'tilt_down', 'slow_dolly_in', 'slow_dolly_out', 'push_in', 'pull_out', 'tracking_shot', 'arc_around_subject', 'orbit', 'crane_up', 'crane_down', 'handheld', 'steadicam_follow', 'fpv_drone', 'aerial_drone', 'dolly_zoom', 'whip_pan', 'rack_focus', 'zoom_in', 'zoom_out'], default: 'static', section: 'motion' },
       'motion.camera_speed': { type: 'select', label: 'Camera Speed', options: ['very_slow', 'slow', 'medium', 'fast'], default: 'slow', section: 'motion' },
       'motion.subject_action': { type: 'textarea', label: 'Subject Action', placeholder: 'Describe what the subject does over the duration...', section: 'motion' },
-      'motion.physics': { type: 'select', label: 'Physics Simulation', options: ['standard', 'liquid_simulation', 'particle_effects', 'cloth_physics', 'hair_physics', 'slow_motion'], default: 'standard', section: 'motion' },
+      'motion.action_timeline': { type: 'textarea', label: 'Action Timeline (timestamped)', placeholder: '0–2s: she turns toward camera\n2–5s: smiles, raises cup\n5–8s: camera pushes in to close-up', section: 'motion' },
+      'motion.physics': { type: 'select', label: 'Physics Simulation', options: ['standard', 'liquid_simulation', 'particle_effects', 'cloth_physics', 'hair_physics', 'slow_motion', 'rigid_body_destruction', 'smoke_and_fire'], default: 'standard', section: 'motion' },
+      'motion.intensity': { type: 'select', label: 'Motion Intensity', options: ['', 'low', 'medium', 'high'], placeholder: 'Midjourney Video maps low/high to --motion.', section: 'motion' },
+      'motion.loop': { type: 'checkbox', label: 'Seamless loop (end frame matches start)', section: 'motion' },
+      // Shots & references
+      'shots.multi_shot': { type: 'checkbox', label: 'Multi-shot sequence (storyboard)', section: 'shots' },
+      'shots.shot_count': { type: 'number', label: 'Number of Shots', min: 1, max: 12, section: 'shots', condition: 'shots.multi_shot' },
+      'shots.shot_list': { type: 'textarea', label: 'Shot List', placeholder: 'Shot 1 (0–3s): wide establishing, dawn city skyline\nShot 2 (3–6s): medium, courier on bike, tracking\nShot 3 (6–10s): close-up, package handoff', section: 'shots', condition: 'shots.multi_shot' },
+      'shots.first_frame': { type: 'text', label: 'First Frame (image URL or description)', placeholder: 'Start image for image-to-video', section: 'shots' },
+      'shots.last_frame': { type: 'text', label: 'Last Frame (image URL or description)', placeholder: 'End image for first/last-frame interpolation', section: 'shots' },
+      'shots.reference_images': { type: 'textarea', label: 'Reference Images (one per line)', placeholder: 'hero character front view\nproduct packshot\nlocation mood photo', section: 'shots' },
+      'shots.reference_videos': { type: 'textarea', label: 'Reference Videos (one per line)', placeholder: 'camera move reference clip\nchoreography reference', section: 'shots' },
+      'shots.reference_audio': { type: 'textarea', label: 'Reference Audio (one per line)', placeholder: 'music bed / voice sample to sync to', section: 'shots' },
+      'shots.motion_reference': { type: 'text', label: 'Motion Reference Video (motion transfer)', placeholder: 'Clip whose movement should be copied onto the character (Kling Motion Control)', section: 'shots' },
+      // Edit existing footage
+      'edit.mode': { type: 'select', label: 'Edit Mode', options: ['generate_new', 'extend_clip', 'restyle', 'edit_existing_clip', 'replace_object', 'change_camera_angle', 'relight', 'reframe_aspect', 'lip_sync'], default: 'generate_new', section: 'edit' },
+      'edit.source_clip': { type: 'text', label: 'Source Clip (URL or note)', section: 'edit' },
+      'edit.instruction': { type: 'textarea', label: 'Edit Instruction', placeholder: 'Describe only the change, e.g., "make it night with rain, keep actor and blocking identical"', section: 'edit' },
       // Audio
-      'audio.native_audio': { type: 'checkbox', label: 'Generate native audio (Veo 3.1 / Kling 3 / Grok Imagine)', default: true, section: 'audio' },
+      'audio.native_audio': { type: 'checkbox', label: 'Generate native audio (for models that support it)', default: true, section: 'audio' },
       'audio.music_style': { type: 'text', label: 'Music Style', placeholder: 'e.g., upbeat electronic, ambient cinematic', section: 'audio' },
       'audio.sound_effects': { type: 'text', label: 'Sound Effects', placeholder: 'e.g., footsteps, wind, city ambiance', section: 'audio' },
-      'audio.dialogue': { type: 'textarea', label: 'Dialogue/Voiceover', placeholder: 'Any spoken words...', section: 'audio' },
+      'audio.ambience': { type: 'text', label: 'Ambience / Room Tone', placeholder: 'e.g., busy café murmur, distant traffic', section: 'audio' },
+      'audio.dialogue': { type: 'textarea', label: 'Dialogue/Voiceover', placeholder: 'Name the speaker and quote the line: Maya (warm, whispering): "We made it."', section: 'audio' },
+      'audio.dialogue_language': { type: 'text', label: 'Dialogue Language / Accent', placeholder: 'e.g., English (British), Spanish (Mexico)', section: 'audio' },
+      'audio.lip_sync': { type: 'checkbox', label: 'Lip-sync dialogue to on-screen speaker', section: 'audio' },
+      'audio.no_music': { type: 'checkbox', label: 'No background music (dialogue + SFX only)', section: 'audio' },
       // Transitions
-      'transitions.type': { type: 'select', label: 'Transition Style', options: ['none', 'fade', 'cut', 'dissolve', 'wipe', 'zoom', 'match_cut', 'whip_pan'], default: 'none', section: 'transitions' },
+      'transitions.type': { type: 'select', label: 'Transition Style', options: ['none', 'fade', 'cut', 'dissolve', 'wipe', 'zoom', 'match_cut', 'whip_pan', 'morph', 'light_leak', 'glitch'], default: 'none', section: 'transitions' },
     };
-    // Video uses API models (Veo, Kling, Runway, Grok Imagine) — strip the Stable-Diffusion-only knobs inherited from IMAGE_SCHEMA
-    ['sd_local.steps','sd_local.guidance_scale','sd_local.denoise_strength','sd_local.sampler','sd_local.clip_skip','sd_local.controlnet_hint'].forEach(k => { delete VIDEO_SCHEMA[k]; });
+    // Video uses API models (Veo, Kling, Runway, Grok Imagine) — strip the image-only knobs inherited from IMAGE_SCHEMA
+    Object.keys(VIDEO_SCHEMA).filter(k => k.startsWith('sd_local.') || k.startsWith('model_params.') || k.startsWith('output.') || k === 'meta.image_count')
+      .forEach(k => { delete VIDEO_SCHEMA[k]; });
 
     const INDUSTRY_SKILLS = {
       // Tech & Development
@@ -182,6 +497,11 @@
     };
 
     const LLM_SCHEMA = {
+      // Target model
+      'meta.target_model': { type: 'select', label: 'Target Model', options: profileOptions('llm'), optionLabels: profileLabels('llm'), modelProfiles: 'llm', placeholder: 'Adds model-specific prompting tips (XML vs Markdown, reasoning controls, API model id).', section: 'target' },
+      'meta.deployment': { type: 'select', label: 'Where This Prompt Runs', options: ['', 'chat_app_message', 'api_system_prompt', 'custom_gpt_or_project_instructions', 'agent_instructions_file', 'batch_pipeline'], section: 'target' },
+      'meta.reasoning_effort': { type: 'select', label: 'Reasoning / Thinking Effort', options: ['', 'minimal_fast', 'low', 'medium', 'high', 'max'], placeholder: 'Maps to effort / thinking level / reasoning_effort in the model API.', section: 'target' },
+      'meta.prompt_format': { type: 'select', label: 'Prompt Structure', options: ['', 'xml_tags', 'markdown_sections', 'plain_prose', 'json_spec'], placeholder: 'Claude: XML tags. GPT / Gemini: Markdown sections. Both work on all models.', section: 'target' },
       // Skills
       'skills.picker': { type: 'industry_skills_picker', label: 'Industry Skills Picker', section: 'skills' },
       'skills.custom': { type: 'text', label: 'Additional Custom Skills (comma-separated)', placeholder: 'e.g., PowerShell, FFmpeg, Blender scripting', section: 'skills' },
@@ -202,7 +522,7 @@
       'context.audience': { type: 'text', label: 'Target Audience', placeholder: 'Who is this for?', section: 'context' },
       'context.audience_expertise': { type: 'select', label: 'Audience Expertise Level', options: ['', 'complete_beginner', 'novice', 'intermediate', 'expert', 'mixed'], section: 'context' },
       'context.domain': { type: 'text', label: 'Domain/Industry', placeholder: 'e.g., healthcare, finance, education', section: 'context' },
-      'context.target_integrations': { type: 'multiselect', label: 'Target Integrations / Tools', options: ['Canva', 'Figma', 'Google Stitch', 'Adobe XD', 'Framer', 'Notion', 'Airtable', 'Google Sheets', 'Slack', 'GitHub', 'Jira', 'Linear', 'Shopify', 'WordPress', 'Webflow', 'Zapier', 'n8n', 'MindStudio', 'Supabase', 'Firebase', 'Vercel', 'Netlify', 'HuggingFace', 'Ollama', 'Make (Integromat)'], section: 'context' },
+      'context.target_integrations': { type: 'multiselect', label: 'Target Integrations / Tools', options: ['Canva', 'Figma', 'Google Stitch', 'Adobe XD', 'Framer', 'Notion', 'Airtable', 'Google Sheets', 'Slack', 'GitHub', 'Jira', 'Linear', 'Shopify', 'WordPress', 'Webflow', 'Zapier', 'n8n', 'MindStudio', 'Supabase', 'Firebase', 'Vercel', 'Netlify', 'Cloudflare', 'HuggingFace', 'Ollama', 'LM Studio', 'Make (Integromat)', 'Google Drive', 'Gmail', 'Microsoft 365', 'HubSpot', 'Salesforce', 'Stripe', 'Asana'], section: 'context' },
       'context.platform': { type: 'select', label: 'Delivery Platform', options: ['', 'chat_interface', 'email', 'blog_post', 'slack_message', 'api_response', 'voice_assistant', 'documentation', 'presentation'], section: 'context' },
       'context.language': { type: 'text', label: 'Language / Locale', placeholder: 'e.g., English (US), French (CA)', section: 'context' },
       // Input
@@ -216,6 +536,9 @@
       'output.language_style': { type: 'select', label: 'Language Style', options: ['', 'plain_language', 'technical_jargon_ok', 'no_jargon', 'use_analogies', 'data_driven', 'narrative'], section: 'output' },
       'output.header_usage': { type: 'select', label: 'Header / Section Usage', options: ['', 'use_headers', 'no_headers', 'minimal_headers'], section: 'output' },
       'output.code_comments': { type: 'select', label: 'Code Comments (if code output)', options: ['', 'verbose_comments', 'inline_only', 'no_comments', 'docstrings_only'], section: 'output' },
+      'output.json_schema': { type: 'textarea', label: 'Structured Output Schema (JSON Schema)', placeholder: '{ "type": "object", "properties": { "title": { "type": "string" } }, "required": ["title"] }', section: 'output' },
+      'output.prefill': { type: 'text', label: 'Response Prefill / Must Start With', placeholder: 'e.g., {  or  ## Summary', section: 'output' },
+      'output.stop_marker': { type: 'text', label: 'End Marker / Stop Sequence', placeholder: 'e.g., </answer>', section: 'output' },
       // Examples
       'examples.few_shot': { type: 'textarea', label: 'Few-Shot Examples', placeholder: 'Input: ...\nOutput: ...\n\nInput: ...\nOutput: ...', section: 'examples' },
       'examples.anti_examples': { type: 'textarea', label: 'Anti-Examples (what NOT to produce)', placeholder: 'Input: ...\nBad Output: ...\nWhy bad: ...', section: 'examples' },
@@ -862,9 +1185,9 @@
     const resolveSentinel = (v) => Object.prototype.hasOwnProperty.call(SENTINEL_OUTPUT, v) ? SENTINEL_OUTPUT[v] : v;
 
     const TYPE_META = {
-      image:     { icon: '🖼️', title: 'Image Prompt', shortTitle: 'Image', desc: 'Nano Banana 2, GPT Image 2, Midjourney V8, FLUX.2, SD', color: 'from-pink-500 to-rose-500', pasteTarget: 'Gemini, ChatGPT, or your image generator' },
-      video:     { icon: '🎬', title: 'Video Prompt', shortTitle: 'Video', desc: 'Veo 3.1, Kling 3, Runway Gen-4.5, Hailuo, Grok Imagine', color: 'from-blue-500 to-cyan-500', pasteTarget: 'Veo, Kling, Runway, or your video generator' },
-      llm:       { icon: '🤖', title: 'LLM Prompt', shortTitle: 'LLM', desc: 'ChatGPT, Claude, Gemini, DeepSeek, Qwen, Llama', color: 'from-green-500 to-emerald-500', pasteTarget: 'ChatGPT, Claude, or your LLM' },
+      image:     { icon: '🖼️', title: 'Image Prompt', shortTitle: 'Image', desc: 'GPT Image 2.5, Nano Banana 2, Midjourney V8.2, FLUX.2, Seedream, Ideogram', color: 'from-pink-500 to-rose-500', pasteTarget: 'ChatGPT, Gemini, Midjourney, or your image generator' },
+      video:     { icon: '🎬', title: 'Video Prompt', shortTitle: 'Video', desc: 'Gemini Omni, Veo 3.1, Kling 3, Seedance, Runway, Luma Ray3', color: 'from-blue-500 to-cyan-500', pasteTarget: 'Gemini, Kling, Runway, or your video generator' },
+      llm:       { icon: '🤖', title: 'LLM Prompt', shortTitle: 'LLM', desc: 'Claude, GPT-6, Gemini 3.8, Grok, DeepSeek, Qwen, Kimi', color: 'from-green-500 to-emerald-500', pasteTarget: 'Claude, ChatGPT, Gemini, or your LLM' },
       dev:       { icon: '💻', title: 'Dev Prompt', shortTitle: 'Dev', desc: 'Web, mobile, desktop, API — full stack specs', color: 'from-violet-500 to-purple-500', pasteTarget: 'ChatGPT, Claude, Cursor, or your AI coding tool' },
       marketing: { icon: '📢', title: 'Marketing Prompt', shortTitle: 'Marketing', desc: 'Campaigns, SEO, ads, content, analytics', color: 'from-amber-500 to-orange-500', pasteTarget: 'ChatGPT, Claude, Jasper, or your AI marketing tool' },
       vibe:      { icon: '🚀', title: 'Vibe Coder Prompt', shortTitle: 'Vibe', desc: 'Build web apps with AI — guided by The Vibe Coder\'s Handbook', color: 'from-teal-500 to-cyan-500', pasteTarget: 'Cursor, Claude Code, Bolt, Lovable, Replit, or your AI coding tool' },
@@ -887,7 +1210,9 @@
         reference: { title: 'Reference & Consistency', icon: '🖇️', desc: 'Image-to-image, character & style refs' },
         text: { title: 'Text Rendering', icon: '✏️', desc: 'Text inside the image' },
         advanced: { title: 'Advanced', icon: '🔧', desc: 'Fine-tuning options' },
-        sd_local: { title: 'Local Diffusion (SD)', icon: '🧪', desc: 'Stable Diffusion / ComfyUI only — ignored by API models' },
+        output: { title: 'Output & Delivery', icon: '📦', desc: 'Format, transparency, intended use' },
+        model_params: { title: 'Model Parameters', icon: '🎛️', desc: 'Midjourney-style knobs — emitted as native flags' },
+        sd_local: { title: 'Local Diffusion (SD)', icon: '🧪', desc: 'SD / FLUX dev / ComfyUI only — ignored by API models' },
       },
       video: {
         intent: { title: 'Vision', icon: '💡', desc: 'Describe what you want to create' },
@@ -895,7 +1220,9 @@
         subject: { title: 'Subject', icon: '👤', desc: 'Main character or object' },
         scene: { title: 'Scene', icon: '🌍', desc: 'Environment and atmosphere' },
         motion: { title: 'Motion', icon: '🎬', desc: 'Camera and subject movement' },
-        audio: { title: 'Audio', icon: '🔊', desc: 'Music, SFX, dialogue' },
+        shots: { title: 'Shots & References', icon: '🎞️', desc: 'Multi-shot, first/last frame, reference media' },
+        edit: { title: 'Edit Footage', icon: '✂️', desc: 'Extend, restyle or edit an existing clip' },
+        audio: { title: 'Audio', icon: '🔊', desc: 'Music, SFX, dialogue, lip-sync' },
         technical: { title: 'Camera', icon: '📷', desc: 'Virtual cinematography' },
         composition: { title: 'Composition', icon: '🖼️', desc: 'Framing and angle' },
         style: { title: 'Style', icon: '🎨', desc: 'Artistic direction' },
@@ -905,6 +1232,7 @@
         advanced: { title: 'Advanced', icon: '🔧', desc: 'Fine-tuning options' },
       },
       llm: {
+        target:    { title: 'Target Model',     icon: '🎯',  desc: 'Model, reasoning effort, prompt structure' },
         role:      { title: 'Role & Persona',   icon: '🎭',  desc: 'Who should the AI be?' },
         skills:    { title: 'Skills',           icon: '🛠️',  desc: 'Industry skills to apply' },
         task:      { title: 'Task',             icon: '📋',  desc: 'What should it do?' },
@@ -1062,6 +1390,75 @@
           'scene.lighting_type': 'studio_softbox',
           'composition.framing': 'close_up',
           'technical.aperture': 'f/8.0',
+        },
+        'Midjourney V8.2 Editorial': {
+          'meta.target_model': 'midjourney_v8_2',
+          'meta.aspect_ratio': '4:5',
+          'meta.resolution': '2K',
+          'meta.quality': 'raw',
+          'model_params.stylize': 150,
+          'technical.camera_model': 'Leica M11',
+          'technical.lens': '35mm',
+          'technical.film_stock': 'Kodak Portra 400',
+          'composition.framing': 'medium_shot',
+          'scene.lighting_type': 'natural_sunlight',
+          'advanced.negative_prompt': 'text, watermark',
+        },
+        'Nano Banana 2 Infographic': {
+          'meta.target_model': 'nano_banana_2',
+          'meta.aspect_ratio': '4:5',
+          'meta.resolution': '2K',
+          'style.medium': 'digital_illustration',
+          'style.medium_aesthetics': ['flat_design', 'isometric', 'editorial'],
+          'text.enabled': true,
+          'text.content': 'HOW SOLAR WORKS',
+          'text.layout': 'Title across the top; 4 numbered steps flowing top-to-bottom with icons; one-line caption per step; source line bottom-right',
+          'text.font_style': 'bold_sans_serif',
+          'advanced.negative_prompt': '',
+          'output.use_case': 'infographic',
+        },
+        'Recraft SVG Logo': {
+          'meta.target_model': 'recraft_v4_1',
+          'meta.aspect_ratio': '1:1',
+          'style.medium': 'digital_illustration',
+          'style.medium_aesthetics': ['vector_clean', 'geometric', 'flat_design'],
+          'style.color_palette': '#0F172A navy, #F59E0B amber',
+          'subject.type': 'abstract',
+          'advanced.negative_prompt': '',
+          'output.format': 'svg_vector',
+          'output.transparent_background': true,
+          'output.use_case': 'logo_icon',
+        },
+        'GPT Image 2.5 Cutout Product': {
+          'meta.target_model': 'gpt_image_2_5_sunburst',
+          'meta.aspect_ratio': '1:1',
+          'subject.type': 'object',
+          'scene.lighting_type': 'studio_softbox',
+          'composition.framing': 'close_up',
+          'advanced.negative_prompt': '',
+          'output.transparent_background': true,
+          'output.format': 'raster_png',
+          'output.use_case': 'product_listing',
+        },
+        'Multi-Reference Edit': {
+          'meta.target_model': 'nano_banana_pro',
+          'reference.mode': 'instruction_edit',
+          'reference.reference_count': 3,
+          'reference.additional_refs': 'Image 1 — the person (keep identity)\nImage 2 — the jacket to put on them\nImage 3 — the background location',
+          'reference.edit_instruction': 'Dress the person from Image 1 in the jacket from Image 2 and place them in the location from Image 3, matching its lighting.',
+          'reference.preserve': ['face_identity', 'pose'],
+          'advanced.negative_prompt': '',
+        },
+        'Local SDXL / ComfyUI': {
+          'meta.target_model': 'sdxl_local',
+          'meta.aspect_ratio': '3:2',
+          'meta.seed': 12345,
+          'sd_local.model_family': 'sdxl',
+          'sd_local.steps': 30,
+          'sd_local.guidance_scale': 6,
+          'sd_local.sampler': 'DPM++_2M_SDE',
+          'sd_local.scheduler': 'Karras',
+          'sd_local.prompt_weighting': true,
         }
       },
       video: {
@@ -1078,6 +1475,59 @@
           'meta.aspect_ratio': '9:16',
           'motion.camera_movement': 'handheld',
           'audio.music_style': 'upbeat trending',
+        },
+        'Veo 3.1 Dialogue Scene': {
+          'meta.target_model': 'veo_3_1',
+          'meta.duration': '8s',
+          'meta.aspect_ratio': '16:9',
+          'meta.resolution': '1080p',
+          'composition.framing': 'medium_shot',
+          'motion.camera_movement': 'slow_dolly_in',
+          'audio.native_audio': true,
+          'audio.dialogue': 'Barista (warm, amused): "Same order as always?"\nCustomer (tired smile): "You know me too well."',
+          'audio.ambience': 'busy café murmur, espresso machine hiss',
+          'audio.lip_sync': true,
+          'audio.no_music': true,
+          'advanced.negative_prompt': '',
+        },
+        'Kling 3.0 Omni Multi-Shot Ad': {
+          'meta.target_model': 'kling_3_0_omni',
+          'meta.duration': '15s',
+          'meta.aspect_ratio': '9:16',
+          'shots.multi_shot': true,
+          'shots.shot_count': 3,
+          'shots.shot_list': 'Shot 1 (0–4s): close-up, sneaker laces pulled tight, dawn light\nShot 2 (4–10s): tracking, runner crosses a bridge, city skyline\nShot 3 (10–15s): hero product shot on wet asphalt, logo reveal',
+          'audio.music_style': 'driving electronic, builds to a hit on the logo',
+          'transitions.type': 'match_cut',
+        },
+        'Seedance Reference-Driven': {
+          'meta.target_model': 'seedance_2_0',
+          'meta.duration': '10s',
+          'meta.resolution': '720p',
+          'shots.reference_images': 'hero character turnaround\nproduct packshot',
+          'shots.reference_videos': 'handheld camera-move reference',
+          'motion.subject_action': 'The character from @Image1 picks up the product from @Image2 and presents it to camera, copying the camera move from @Video1.',
+        },
+        'Motion Transfer (Kling)': {
+          'meta.target_model': 'kling_motion_control_v3',
+          'meta.duration': '10s',
+          'shots.first_frame': 'Character image to animate',
+          'shots.motion_reference': 'Dance clip whose choreography should be copied',
+          'reference.character_consistency': 'Keep outfit, face and proportions from the character image',
+        },
+        'Aleph Restyle Existing Clip': {
+          'meta.target_model': 'runway_aleph_2',
+          'edit.mode': 'restyle',
+          'edit.source_clip': 'Uploaded 6 s street clip',
+          'edit.instruction': 'Turn the scene into a snowy winter night with warm window light; keep the actors, blocking and camera move identical.',
+        },
+        'Midjourney Seamless Loop': {
+          'meta.target_model': 'midjourney_video_v1',
+          'meta.duration': '5s',
+          'motion.intensity': 'low',
+          'motion.loop': true,
+          'audio.native_audio': false,
+          'style.medium': 'digital_illustration',
         }
       },
       llm: {
@@ -1835,10 +2285,12 @@
     const buildPromptObject = (type, data) => {
       const clean = validateFormData(type, data);
       const result = {};
+      const visible = {};
       for (const [key, value] of Object.entries(clean)) {
         if (key.startsWith('_') || value === '' || (Array.isArray(value) && !value.length)) continue;
         const cfg = SCHEMAS[type][key];
         if (cfg?.condition && clean[cfg.condition] !== true) continue;
+        visible[key] = value;
         const parts = key.split('.');
         let target = result;
         for (const part of parts.slice(0, -1)) {
@@ -1848,6 +2300,9 @@
         }
         target[parts.at(-1)] = typeof value === 'string' ? resolveSentinel(value) : value;
       }
+      const profiles = hasOwn(MODEL_PROFILES, type) ? MODEL_PROFILES[type] : null;
+      const modelId = visible['meta.target_model'];
+      if (profiles && typeof modelId === 'string' && hasOwn(profiles, modelId)) result.model_guidance = modelGuidance(profiles[modelId], visible);
       return result;
     };
     const promptPlainText = object => {
@@ -1916,7 +2371,7 @@
         ...(step.type === 'translate' ? { targets: [...step.targets, ...step.customTarget.split(',').map(t => t.trim()).filter(Boolean)] } : {})
       })) };
     };
-    globalThis.PromptStudioCore = { SCHEMAS, TYPE_META, SECTION_INFO, PRESETS, SELECT_SENTINELS, SENTINEL_OUTPUT,
+    globalThis.PromptStudioCore = { SCHEMAS, TYPE_META, SECTION_INFO, PRESETS, MODEL_PROFILES, SELECT_SENTINELS, SENTINEL_OUTPUT,
       isRecord, hasOwn, isPromptType, isSafeKey, validateFormData, defaultFormData, buildPromptObject,
       promptPlainText, importPromptData, validTemplate, cleanTemplateLibrary, validAutosave, validateChainSteps, buildChainObject };
 
@@ -2747,10 +3202,20 @@
                     <option key={s || '__skip'} value={s} className={s === '' ? 'text-gray-400' : 'italic'}>{SENTINEL_LABELS[s]}</option>
                   ))}
                   {schemaOpts.map(opt => (
-                    <option key={opt} value={opt}>{opt.replace(/_/g, ' ')}</option>
+                    <option key={opt} value={opt}>{config.optionLabels?.[opt] || opt.replace(/_/g, ' ')}</option>
                   ))}
                 </select>
                 {config.placeholder && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{config.placeholder}</p>}
+                {config.modelProfiles && Object.prototype.hasOwnProperty.call(MODEL_PROFILES[config.modelProfiles], value) && (() => {
+                  const profile = MODEL_PROFILES[config.modelProfiles][value];
+                  return (
+                    <div className="mt-2 p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 text-xs text-blue-900 dark:text-blue-100 space-y-1">
+                      {profile.status !== 'current' && <p className="font-semibold uppercase tracking-wide">{profile.status.replace(/_/g, ' ')}</p>}
+                      <ul className="list-disc pl-4 space-y-0.5">{profile.notes.map(note => <li key={note}>{note}</li>)}</ul>
+                      <p className="italic opacity-80">Limit warnings and native syntax appear in the generated output under model_guidance.</p>
+                    </div>
+                  );
+                })()}
               </div>
             );
           }
