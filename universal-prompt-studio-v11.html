@@ -1235,7 +1235,160 @@
       'output.additional_instructions': { type: 'textarea', label: 'Additional Instructions', placeholder: 'Anything else — repo conventions to respect, priority phases (all-caps for critical directives), model choice per role...', section: 'output' },
     };
 
-    const SCHEMAS = { image: IMAGE_SCHEMA, video: VIDEO_SCHEMA, llm: LLM_SCHEMA, dev: DEV_SCHEMA, marketing: MARKETING_SCHEMA, vibe: VIBE_SCHEMA, frontend: FRONTEND_SCHEMA, pm: PM_SCHEMA, loop: LOOP_SCHEMA, audio: AUDIO_SCHEMA, agent: AGENT_SCHEMA };
+    // Motion design brief — tool-agnostic: AI video models, motion tools (AE, Jitter, Lottie, Rive, Cavalry), code, or a human animator
+    const MOTION_TOOLS = {
+      after_effects: 'Adobe After Effects', jitter: 'Jitter', lottie_creator: 'LottieFiles Lottie Creator', rive: 'Rive', cavalry: 'Cavalry',
+      spline: 'Spline', blender: 'Blender', cinema_4d: 'Cinema 4D', figma_smart_animate: 'Figma (Smart Animate / Motion)', framer: 'Framer',
+      canva: 'Canva', gsap_code: 'GSAP (code)', motion_dev_code: 'Motion — motion.dev (code)', css_animations: 'CSS animations', remotion: 'Remotion (React video)',
+      three_js: 'Three.js / R3F', ai_video_model: 'AI video model (pick below)', human_animator_brief: 'Brief for a human animator',
+    };
+    const MOTION_SCHEMA = {
+      user_intent: { type: 'textarea', label: 'What motion piece do you need?', placeholder: 'e.g., a 6-second logo reveal for our app launch that feels fast, premium and playful...', section: 'intent' },
+      // Brief
+      'brief.project_type': { type: 'select', label: 'Project Type', options: ['logo_reveal', 'kinetic_typography', 'explainer', 'product_promo', 'social_ad', 'ui_micro_interaction', 'app_onboarding', 'title_sequence', 'lower_thirds', 'broadcast_package', 'data_visualization', 'lyric_video', 'looping_background', 'event_opener', 'transition_pack', 'icon_animation_set', 'intro_outro_bumper'], section: 'brief' },
+      'brief.purpose': { type: 'text', label: 'Purpose / Goal', placeholder: 'e.g., announce the launch, explain the feature in 30s, add delight to the checkout button', section: 'brief' },
+      'brief.audience': { type: 'text', label: 'Audience', placeholder: 'e.g., Gen-Z mobile gamers, enterprise IT buyers', section: 'brief' },
+      'brief.key_message': { type: 'textarea', label: 'Key Message / Story', placeholder: 'The one thing the viewer must take away, and the story beats that get them there', section: 'brief' },
+      'brief.placement': { type: 'multiselect', label: 'Where It Plays', options: ['youtube', 'instagram_reels', 'tiktok', 'linkedin', 'x_twitter', 'website_hero', 'app_ui', 'broadcast_tv', 'streaming_ad', 'event_screen', 'presentation', 'digital_signage', 'ooh_billboard'], section: 'brief' },
+      'brief.duration': { type: 'select', label: 'Duration', options: ['', '0:01', '0:03', '0:06', '0:10', '0:15', '0:30', '0:45', '1:00', '1:30', '2:00', '3:00_plus', 'loop'], section: 'brief' },
+      'brief.brand': { type: 'text', label: 'Brand / Guidelines', placeholder: 'Brand name, guideline link, logo file notes, do/don\'t rules', section: 'brief' },
+      'brief.cta': { type: 'text', label: 'Call to Action / End Card', placeholder: 'e.g., "Download now" + app store badges', section: 'brief' },
+      // Target
+      'target.tool': { type: 'select', label: 'Target Tool / Medium', options: Object.keys(MOTION_TOOLS), optionLabels: MOTION_TOOLS, section: 'target' },
+      'target.ai_video_model': { type: 'select', label: 'AI Video Model (if generating with AI)', options: profileOptions('video'), optionLabels: profileLabels('video'), modelProfiles: 'video', placeholder: 'Adds that model\'s prompting tips and native syntax to the output.', section: 'target' },
+      'target.output_kind': { type: 'select', label: 'What Should the AI Produce?', options: ['creative_brief', 'storyboard_shot_list', 'style_frame_image_prompts', 'animation_spec_for_animator', 'ai_video_prompts_per_shot', 'code_implementation', 'after_effects_build_plan', 'lottie_ready_spec'], default: 'storyboard_shot_list', section: 'target' },
+      // Style
+      'style.motion_style': { type: 'select', label: 'Motion Style', options: ['flat_2d_vector', '2_5d_parallax', '3d_cgi', 'isometric', 'cel_frame_by_frame', 'kinetic_typography', 'collage_mixed_media', 'liquid_morph', 'glitch_datamosh', 'swiss_minimal', 'brutalist', 'retro_vhs_80s', 'y2k_chrome', 'hand_drawn_scribble', 'paper_cutout', 'claymation_stop_motion', 'glassmorphism_ui', 'particle_abstract', 'generative_data_driven'], section: 'style' },
+      'style.mood': { type: 'multiselect', label: 'Mood', options: ['energetic', 'playful', 'premium_luxury', 'calm', 'techy', 'bold', 'elegant', 'quirky', 'dramatic', 'friendly', 'corporate_clean', 'mysterious'], section: 'style' },
+      'style.graphic_language': { type: 'multiselect', label: 'Graphic Language', options: ['bold_shapes', 'thin_line_art', 'gradients', 'grain_noise_texture', 'halftone', 'duotone', 'outline_strokes', 'soft_blur_glow', 'hard_shadows', 'geometric_patterns', 'organic_blobs', 'photo_cutouts', '3d_icons', 'hand_lettering'], section: 'style' },
+      'style.color_palette': { type: 'text', label: 'Color Palette', placeholder: 'e.g., #111827 ink, #F97316 orange, #FDE68A cream — or "brand palette"', section: 'style' },
+      'style.background': { type: 'select', label: 'Background', options: ['', 'solid_color', 'gradient', 'textured', 'transparent_alpha', 'live_footage', '3d_environment'], section: 'style' },
+      'style.references': { type: 'textarea', label: 'Style References', placeholder: 'Studios, reels, Dribbble/Behance links, films — and what to take from each', section: 'style' },
+      // Typography
+      'typography.text_content': { type: 'textarea', label: 'On-Screen Text (in order)', placeholder: 'Line 1: Meet Nova\nLine 2: Your money, on autopilot\nEnd card: Download free', section: 'typography' },
+      'typography.font': { type: 'text', label: 'Typeface', placeholder: 'e.g., Inter Display (variable), GT Walsheim Bold', section: 'typography' },
+      'typography.case': { type: 'select', label: 'Letter Case', options: ['', 'uppercase', 'sentence_case', 'title_case', 'lowercase'], section: 'typography' },
+      'typography.text_animation': { type: 'multiselect', label: 'Text Animation', options: ['per_character_cascade', 'per_word_pop', 'per_line_slide', 'mask_reveal', 'tracking_expand', 'typewriter', 'scale_bounce', 'blur_in', '3d_extrude_rotate', 'kinetic_layout_shift', 'variable_font_axis', 'split_flap', 'glitch_text', 'handwriting_write_on', 'text_on_path'], section: 'typography' },
+      'typography.read_time': { type: 'select', label: 'Minimum Hold per Line', options: ['', '0.5s', '1s', '1.5s', '2s', '3s'], placeholder: 'Rule of thumb: ~3 words per second plus 0.5 s.', section: 'typography' },
+      // Timing & easing
+      'timing.fps': { type: 'select', label: 'Frame Rate', options: ['12fps_on_twos', '23.976fps', '24fps', '25fps', '29.97fps', '30fps', '50fps', '60fps'], section: 'timing' },
+      'timing.pacing': { type: 'select', label: 'Pacing', options: ['', 'slow_elegant', 'medium', 'snappy', 'frenetic', 'rhythmic_on_beat'], section: 'timing' },
+      'timing.bpm': { type: 'number', label: 'Music BPM (for beat sync)', min: 40, max: 220, section: 'timing' },
+      'timing.easing': { type: 'select', label: 'Primary Easing', options: ['', 'linear', 'ease_in_out_sine', 'ease_out_cubic', 'ease_out_quint', 'ease_out_expo', 'ease_in_out_expo', 'ease_in_out_back_overshoot', 'elastic', 'bounce', 'spring_physics', 'custom_bezier', 'stepped_hold'], section: 'timing' },
+      'timing.custom_bezier': { type: 'text', label: 'Custom Bezier / Spring Values', placeholder: 'e.g., cubic-bezier(0.16, 1, 0.3, 1) or spring(stiffness 300, damping 20)', section: 'timing' },
+      'timing.overshoot': { type: 'select', label: 'Overshoot / Settle', options: ['', 'none', 'subtle', 'pronounced'], section: 'timing' },
+      'timing.stagger': { type: 'text', label: 'Stagger / Offset', placeholder: 'e.g., 2 frames per character, 80 ms between cards', section: 'timing' },
+      'timing.principles': { type: 'multiselect', label: 'Animation Principles to Emphasize', options: ['squash_and_stretch', 'anticipation', 'staging', 'straight_ahead_vs_pose_to_pose', 'follow_through_overlapping_action', 'slow_in_slow_out', 'arcs', 'secondary_action', 'timing', 'exaggeration', 'solid_drawing', 'appeal'], section: 'timing' },
+      // Choreography
+      'choreography.beats': { type: 'textarea', label: 'Beat Sheet / Shot List', placeholder: '0:00–0:01 shapes converge from edges\n0:01–0:03 morph into logo mark, overshoot\n0:03–0:05 wordmark mask-reveals, tagline fades up\n0:05–0:06 hold', section: 'choreography' },
+      'choreography.transitions': { type: 'multiselect', label: 'Transitions', options: ['cut', 'match_cut', 'morph_shape', 'mask_wipe', 'circle_reveal', 'whip_pan_blur', 'zoom_through', 'push_slide', 'liquid_transition', 'glitch', 'light_leak', 'ink_bleed', 'page_turn', 'dissolve'], section: 'choreography' },
+      'choreography.camera': { type: 'select', label: 'Camera', options: ['', 'static_2d', '2d_pan_zoom', 'parallax_layers', '3d_camera_orbit', '3d_fly_through', 'dolly_zoom', 'handheld_shake'], section: 'choreography' },
+      'choreography.loop': { type: 'select', label: 'Looping', options: ['', 'no_loop', 'seamless_loop', 'ping_pong'], section: 'choreography' },
+      'choreography.focal_path': { type: 'text', label: 'Eye Path / Focal Hierarchy', placeholder: 'e.g., start center, sweep left-to-right, land on CTA bottom-right', section: 'choreography' },
+      // Sound
+      'sound.music': { type: 'text', label: 'Music', placeholder: 'e.g., punchy electronic, 120 BPM, hit on the logo', section: 'sound' },
+      'sound.sfx_sync': { type: 'checkbox', label: 'Sync key motions to SFX (whooshes, pops, impacts)', section: 'sound' },
+      'sound.sfx_palette': { type: 'text', label: 'SFX Palette', placeholder: 'e.g., soft UI clicks, airy whooshes, sub-bass impact', section: 'sound' },
+      'sound.voiceover': { type: 'textarea', label: 'Voiceover Script', section: 'sound' },
+      'sound.hit_points': { type: 'text', label: 'Hit Points', placeholder: 'e.g., 0:02.0 logo lands, 0:04.5 tagline, 0:05.5 button pulse', section: 'sound' },
+      'sound.sound_off_safe': { type: 'checkbox', label: 'Must work with sound off (story told visually / captions)', section: 'sound' },
+      // Deliverables
+      'deliverables.aspect_ratios': { type: 'multiselect', label: 'Aspect Ratios', options: ['16:9', '9:16', '1:1', '4:5', '4:3', '21:9', 'custom'], section: 'deliverables' },
+      'deliverables.resolution': { type: 'select', label: 'Resolution', options: ['', '720p', '1080p', '1440p', '4K_UHD', 'DCI_4K', 'custom_pixel_size'], section: 'deliverables' },
+      'deliverables.formats': { type: 'multiselect', label: 'File Formats', options: ['mp4_h264', 'mp4_h265_hevc', 'prores_422_hq', 'prores_4444_alpha', 'webm_vp9_alpha', 'gif', 'lottie_json', 'dotlottie', 'rive_riv', 'png_sequence', 'exr_sequence', 'animated_svg', 'mogrt'], section: 'deliverables' },
+      'deliverables.alpha': { type: 'checkbox', label: 'Needs transparent background (alpha)', section: 'deliverables' },
+      'deliverables.safe_zones': { type: 'multiselect', label: 'Safe Zones', options: ['title_safe', 'action_safe', 'tiktok_ui_safe', 'instagram_reels_ui_safe', 'youtube_shorts_ui_safe'], section: 'deliverables' },
+      'deliverables.max_file_size': { type: 'text', label: 'Max File Size / Performance Budget', placeholder: 'e.g., Lottie < 50 KB, GIF < 2 MB, 60 fps on mid-range phones', section: 'deliverables' },
+      'deliverables.versions': { type: 'text', label: 'Versions / Cutdowns', placeholder: 'e.g., 30s master + 15s + 6s bumper; EN/FR/ES text versions', section: 'deliverables' },
+      // Accessibility
+      'accessibility.flash_safety': { type: 'checkbox', label: 'No more than 3 flashes per second (WCAG 2.3.1)', default: true, section: 'accessibility' },
+      'accessibility.reduced_motion': { type: 'checkbox', label: 'Provide a reduced-motion alternative (prefers-reduced-motion)', section: 'accessibility' },
+      'accessibility.captions': { type: 'checkbox', label: 'Burned-in or sidecar captions for VO', section: 'accessibility' },
+      'accessibility.contrast': { type: 'checkbox', label: 'Keep text contrast ≥ 4.5:1 over moving backgrounds', section: 'accessibility' },
+      // Output
+      'output.format': { type: 'select', label: 'Response Format', options: ['', 'storyboard_table', 'shot_by_shot_prompts', 'animation_spec_document', 'after_effects_build_plan', 'code', 'style_frame_image_prompts'], section: 'output' },
+      'output.include_timing_sheet': { type: 'checkbox', label: 'Include a frame-accurate timing sheet', default: true, section: 'output' },
+      'output.include_easing_values': { type: 'checkbox', label: 'Include exact easing values (bezier / influence %)', default: true, section: 'output' },
+      'output.include_style_frames': { type: 'checkbox', label: 'Include style-frame image prompts for key moments', section: 'output' },
+      'output.variations': { type: 'select', label: 'Concept Variations', options: ['', '1', '2', '3'], section: 'output' },
+    };
+
+    // After Effects — technical build prompts for an LLM, the AE AI Assistant, an AE MCP server, or a human
+    const AE_SCHEMA = {
+      user_intent: { type: 'textarea', label: 'What do you need in After Effects?', placeholder: 'e.g., an auto-sizing lower third MOGRT whose box grows with the name text, with in/out animations protected...', section: 'intent' },
+      // Setup
+      'meta.task': { type: 'select', label: 'Task', options: ['build_comp_step_by_step', 'write_expression', 'write_extendscript_jsx', 'build_scriptui_panel', 'debug_expression_or_script', 'rig_character', 'build_mogrt_template', 'automate_batch_render', 'create_animation_preset_ffx', 'export_to_lottie', 'vfx_roto_tracking_compositing', 'review_and_optimize_project'], default: 'build_comp_step_by_step', section: 'meta' },
+      'meta.ae_version': { type: 'select', label: 'After Effects Version', options: ['ae_26_x_current', 'ae_25_x', 'ae_24_x', 'older'], optionLabels: { ae_26_x_current: 'AE 26.x (2026, current)', ae_25_x: 'AE 25.x (2025)', ae_24_x: 'AE 24.x (2024)', older: 'Older' }, default: 'ae_26_x_current', placeholder: '26.x adds native 3D shapes, Substance materials, variable-font keyframes, SVG as shapes, Advanced 3D depth of field and Object Matte.', section: 'meta' },
+      'meta.assistant': { type: 'select', label: 'Who Executes This Prompt', options: ['llm_chat', 'ae_ai_assistant_beta', 'ae_mcp_server_via_claude_code', 'claude_code_writes_jsx_files', 'human_motion_designer'], optionLabels: { llm_chat: 'LLM chat (Claude / ChatGPT / Gemini)', ae_ai_assistant_beta: 'After Effects AI Assistant (beta, 26.5)', ae_mcp_server_via_claude_code: 'AE MCP server driven by Claude Code', claude_code_writes_jsx_files: 'Claude Code writing .jsx files', human_motion_designer: 'Human motion designer' }, section: 'meta' },
+      'meta.expression_engine': { type: 'select', label: 'Expression Engine', options: ['javascript_es2018', 'legacy_extendscript_es3'], default: 'javascript_es2018', placeholder: 'File › Project Settings › Expressions. JavaScript is default; an if without else fails there. Scripts (.jsx) are always ES3.', section: 'meta' },
+      'meta.skill_level': { type: 'select', label: 'Your AE Skill Level', options: ['', 'beginner', 'intermediate', 'advanced', 'technical_director'], section: 'meta' },
+      'meta.os': { type: 'select', label: 'Operating System', options: ['', 'windows', 'macos', 'windows_on_arm'], section: 'meta' },
+      // Composition
+      'comp.name': { type: 'text', label: 'Comp Name', placeholder: 'e.g., LT_Main_1920', section: 'comp' },
+      'comp.resolution': { type: 'select', label: 'Resolution', options: ['1920x1080', '3840x2160', '1080x1920', '1080x1080', '1080x1350', '2560x1440', '4096x2160', 'custom'], default: '1920x1080', section: 'comp' },
+      'comp.fps': { type: 'select', label: 'Frame Rate', options: ['23.976', '24', '25', '29.97', '30', '50', '59.94', '60'], default: '30', section: 'comp' },
+      'comp.duration': { type: 'text', label: 'Duration (timecode)', placeholder: 'e.g., 0:00:06:00', section: 'comp' },
+      'comp.bit_depth': { type: 'select', label: 'Bit Depth', options: ['8bpc', '16bpc', '32bpc_float'], default: '8bpc', section: 'comp' },
+      'comp.color_management': { type: 'select', label: 'Color Management', options: ['', 'off_legacy', 'srgb', 'rec709', 'rec2020_hdr', 'ocio_aces'], section: 'comp' },
+      'comp.renderer': { type: 'select', label: '3D Renderer', options: ['', 'classic_3d', 'advanced_3d', 'cinema_4d'], section: 'comp' },
+      // Layers
+      'layers.types': { type: 'multiselect', label: 'Layer Types Involved', options: ['shape_layers', 'text_layers', 'solids', 'null_objects', 'adjustment_layers', 'cameras', 'lights', 'precomps', 'footage', 'native_3d_shapes', '3d_models_glb_obj', 'svg_as_shapes', 'audio'], section: 'layers' },
+      'layers.structure': { type: 'textarea', label: 'Layer Stack / Parenting', placeholder: 'CTRL null (top) → parents BOX and TXT_Name; TXT_Title below; BG solid at bottom', section: 'layers' },
+      'layers.precomp_strategy': { type: 'select', label: 'Precomp Strategy', options: ['', 'flat_single_comp', 'precomp_per_scene', 'precomp_per_element', 'master_comp_with_controls'], section: 'layers' },
+      'layers.naming': { type: 'checkbox', label: 'Use clear prefixed layer names (CTRL_, TXT_, SHP_, BG_)', default: true, section: 'layers' },
+      // Animation
+      'animation.techniques': { type: 'multiselect', label: 'Techniques', options: ['keyframes', 'graph_editor_curves', 'trim_paths', 'repeaters', 'offset_paths', 'wiggle_paths', 'merge_paths', 'track_mattes', 'masks', 'time_remap', 'motion_blur', 'auto_orient_motion_paths', 'text_animators_range_selectors', 'puppet_pins', 'shape_path_morphing', 'parenting_chains', '3d_camera_moves'], section: 'animation' },
+      'animation.easing': { type: 'select', label: 'Easing Approach', options: ['', 'easy_ease_f9', 'strong_ease_out_influence', 'symmetric_ease_in_out', 'custom_speed_graph', 'linear_mechanical', 'overshoot_via_expression', 'flow_or_ease_copy_plugin'], section: 'animation' },
+      'animation.influence': { type: 'text', label: 'Keyframe Influence / Speed', placeholder: 'e.g., outgoing 85%, incoming 30%; peak speed early', section: 'animation' },
+      'animation.timing_notes': { type: 'textarea', label: 'Keyframe Timing (frames)', placeholder: 'f0 box scale 0% → f12 105% → f16 100%; text starts f8, 2-frame stagger', section: 'animation' },
+      'animation.motion_blur': { type: 'checkbox', label: 'Enable motion blur (layer + comp switch)', section: 'animation' },
+      // Expressions
+      'expressions.patterns': { type: 'multiselect', label: 'Expression Patterns', options: ['wiggle', 'loopOut_cycle', 'loopOut_pingpong', 'loopOut_offset', 'valueAtTime_delay', 'linear_ease_remap', 'sourceRectAtTime_autosize', 'inertial_bounce_overshoot', 'index_based_offset', 'time_based_rotation', 'seedRandom_random', 'posterizeTime', 'text_sourceText_dynamic', 'expression_controls_rig', 'toComp_fromComp_space', 'lookAt_auto_orient'], section: 'expressions' },
+      'expressions.target_property': { type: 'text', label: 'Target Layer / Property', placeholder: 'e.g., SHP_Box › Contents › Rectangle 1 › Size', section: 'expressions' },
+      'expressions.control_rig': { type: 'checkbox', label: 'Expose settings via Expression Controls on a CTRL null', default: true, section: 'expressions' },
+      'expressions.commented': { type: 'checkbox', label: 'Comment the expression code', default: true, section: 'expressions' },
+      'expressions.safe_fallbacks': { type: 'checkbox', label: 'Every if has an else; guard missing layers and divide-by-zero', default: true, section: 'expressions' },
+      'expressions.lightweight': { type: 'checkbox', label: 'Keep expressions lightweight (avoid per-frame sampleImage / long valueAtTime loops)', section: 'expressions' },
+      // Scripting
+      'scripting.script_type': { type: 'select', label: 'Script Type', options: ['', 'jsx_run_once', 'scriptui_dockable_panel', 'cep_html_panel', 'ffx_animation_preset'], section: 'scripting' },
+      'scripting.requirements': { type: 'multiselect', label: 'Script Requirements', options: ['undo_group', 'try_catch_error_alerts', 'es3_only_no_let_const_arrow', 'json_polyfill', 'prompt_user_for_inputs', 'operate_on_selected_layers', 'batch_over_project_items', 'read_csv_or_json_data', 'progress_feedback', 'save_incremental_copy'], section: 'scripting' },
+      'scripting.data_source': { type: 'text', label: 'Data Source', placeholder: 'e.g., CSV with columns name,title for 40 lower thirds', section: 'scripting' },
+      'scripting.output_location': { type: 'text', label: 'Output / Save Location', placeholder: 'e.g., ~/Renders/{compName}_{date}.mov', section: 'scripting' },
+      // Rigging
+      'rigging.tool': { type: 'select', label: 'Rigging Tool', options: ['', 'duik_angela', 'joysticks_n_sliders', 'rubberhose', 'limber', 'native_puppet_tool', 'custom_nulls_and_expressions'], section: 'rigging' },
+      'rigging.character_type': { type: 'select', label: 'Character Type', options: ['', 'flat_2d_vector', 'cutout_puppet', 'rubberhose_limbs', 'layered_3d', 'mascot_logo'], section: 'rigging' },
+      'rigging.controls': { type: 'textarea', label: 'Controls Needed', placeholder: 'e.g., head turn joystick, blink slider, walk cycle speed, IK arms with auto-bend', section: 'rigging' },
+      // 3D
+      'three_d.approach': { type: 'select', label: '3D Approach', options: ['', 'native_advanced_3d', 'native_3d_shapes_substance', 'imported_glb_model', 'element_3d', 'cinema_4d_cineware', 'layers_2_5d_with_camera'], section: 'three_d' },
+      'three_d.materials': { type: 'text', label: 'Materials', placeholder: 'e.g., brushed aluminium Substance material, frosted glass', section: 'three_d' },
+      'three_d.lighting': { type: 'select', label: '3D Lighting', options: ['', 'environment_light_hdri', 'three_point', 'single_key_dramatic', 'ambient_only'], section: 'three_d' },
+      'three_d.depth_of_field': { type: 'checkbox', label: 'Camera depth of field (Advanced 3D)', section: 'three_d' },
+      'three_d.camera_moves': { type: 'text', label: 'Camera Moves', placeholder: 'e.g., slow orbit 30° with dolly-in, two-node camera + null', section: 'three_d' },
+      // Effects
+      'effects.native': { type: 'multiselect', label: 'Native Effects / Tools', options: ['fractal_noise', 'turbulent_displace', 'curl_noise', 'glow', 'echo', 'displacement_map', 'gradient_ramp', 'linear_wipe', 'venetian_blinds', 'cc_particle_world', 'cc_ball_action', 'keylight', 'unmult', 'object_matte', 'roto_brush', 'content_aware_fill', 'generative_extend', 'mocha_ae', 'camera_lens_blur', 'lumetri_color'], section: 'effects' },
+      'effects.third_party': { type: 'multiselect', label: 'Third-Party Plugins', options: ['trapcode_particular', 'trapcode_form', 'element_3d', 'saber', 'plexus', 'deep_glow', 'sapphire', 'newton', 'motion_bro', 'aejuice', 'flow', 'overlord', 'red_giant_universe'], section: 'effects' },
+      'effects.plugin_policy': { type: 'select', label: 'Plugin Policy', options: ['native_only', 'free_plugins_ok', 'any_plugin_ok'], default: 'native_only', section: 'effects' },
+      // MOGRT
+      'mogrt.enabled': { type: 'checkbox', label: 'Package as a Motion Graphics Template (.mogrt) for Premiere', section: 'mogrt' },
+      'mogrt.exposed_controls': { type: 'textarea', label: 'Essential Graphics Controls', placeholder: 'Name text, Title text, Accent colour, Box opacity, Position dropdown (L/C/R)', section: 'mogrt', condition: 'mogrt.enabled' },
+      'mogrt.responsive_time': { type: 'checkbox', label: 'Responsive Design – Time (protect intro/outro)', section: 'mogrt', condition: 'mogrt.enabled' },
+      'mogrt.autosize': { type: 'checkbox', label: 'Auto-size shapes to text (sourceRectAtTime)', section: 'mogrt', condition: 'mogrt.enabled' },
+      // Render
+      'render.method': { type: 'select', label: 'Render Method', options: ['', 'render_queue', 'adobe_media_encoder', 'aerender_command_line', 'bodymovin_lottie_export'], section: 'render' },
+      'render.codec': { type: 'select', label: 'Codec / Format', options: ['', 'h264_mp4', 'h265_hevc', 'prores_422_hq', 'prores_4444_alpha', 'png_sequence', 'exr_sequence', 'gif', 'lottie_json'], section: 'render' },
+      'render.alpha': { type: 'checkbox', label: 'Render with alpha channel (RGB + Alpha, straight)', section: 'render' },
+      'render.include_audio': { type: 'checkbox', label: 'Include audio', section: 'render' },
+      // Performance
+      'performance.tips': { type: 'multiselect', label: 'Performance Practices', options: ['use_proxies', 'disk_cache', 'precompose_heavy_effects', 'collapse_transformations', 'draft_3d_while_working', 'reduce_expression_load', 'purge_memory_cache', 'multi_frame_rendering'], section: 'performance' },
+      // Output
+      'output.deliverable': { type: 'select', label: 'Deliverable', options: ['step_by_step_build_guide', 'expression_code_blocks', 'complete_jsx_script', 'build_guide_plus_code', 'project_breakdown_review'], default: 'build_guide_plus_code', section: 'output' },
+      'output.explanation_depth': { type: 'select', label: 'Explanation Depth', options: ['', 'code_only', 'brief_comments', 'explain_each_step', 'teach_me_why'], section: 'output' },
+      'output.include_ui_paths': { type: 'checkbox', label: 'Include exact menu paths (e.g., Effect › Distort › Turbulent Displace)', default: true, section: 'output' },
+      'output.include_troubleshooting': { type: 'checkbox', label: 'Include common errors and fixes', default: true, section: 'output' },
+      'output.verify_steps': { type: 'checkbox', label: 'Include how to verify it works (RAM preview checks)', section: 'output' },
+    };
+
+    const SCHEMAS = { image: IMAGE_SCHEMA, video: VIDEO_SCHEMA, motion: MOTION_SCHEMA, aftereffects: AE_SCHEMA, llm: LLM_SCHEMA, dev: DEV_SCHEMA, marketing: MARKETING_SCHEMA, vibe: VIBE_SCHEMA, frontend: FRONTEND_SCHEMA, pm: PM_SCHEMA, loop: LOOP_SCHEMA, audio: AUDIO_SCHEMA, agent: AGENT_SCHEMA };
 
     const SELECT_SENTINELS = ['', 'none', 'ask_me', 'best_fit'];
     const SENTINEL_LABELS = {
@@ -1250,6 +1403,8 @@
     const TYPE_META = {
       image:     { icon: '🖼️', title: 'Image Prompt', shortTitle: 'Image', desc: 'GPT Image 2.5, Nano Banana 2, Midjourney V8.2, FLUX.2, Seedream, Ideogram', color: 'from-pink-500 to-rose-500', pasteTarget: 'ChatGPT, Gemini, Midjourney, or your image generator' },
       video:     { icon: '🎬', title: 'Video Prompt', shortTitle: 'Video', desc: 'Gemini Omni, Veo 3.1, Kling 3, Seedance, Runway, Luma Ray3', color: 'from-blue-500 to-cyan-500', pasteTarget: 'Gemini, Kling, Runway, or your video generator' },
+      motion:    { icon: '🎞️', title: 'Motion Design Prompt', shortTitle: 'Motion', desc: 'Logo reveals, kinetic type, UI motion, explainers — any tool', color: 'from-yellow-500 to-orange-500', pasteTarget: 'Claude, ChatGPT, an AI video model, or your motion tool' },
+      aftereffects: { icon: '🅰️', title: 'After Effects Prompt', shortTitle: 'After Effects', desc: 'AE 26 builds, expressions, ExtendScript, rigs, MOGRTs', color: 'from-purple-600 to-indigo-600', pasteTarget: 'Claude, ChatGPT, the AE AI Assistant, or an AE MCP server' },
       llm:       { icon: '🤖', title: 'LLM Prompt', shortTitle: 'LLM', desc: 'Claude, GPT-6, Gemini 3.8, Grok, DeepSeek, Qwen, Kimi', color: 'from-green-500 to-emerald-500', pasteTarget: 'Claude, ChatGPT, Gemini, or your LLM' },
       dev:       { icon: '💻', title: 'Dev Prompt', shortTitle: 'Dev', desc: 'Web, mobile, desktop, API — full stack specs', color: 'from-violet-500 to-purple-500', pasteTarget: 'ChatGPT, Claude, Cursor, or your AI coding tool' },
       marketing: { icon: '📢', title: 'Marketing Prompt', shortTitle: 'Marketing', desc: 'Campaigns, SEO, ads, content, analytics', color: 'from-amber-500 to-orange-500', pasteTarget: 'ChatGPT, Claude, Jasper, or your AI marketing tool' },
@@ -1293,6 +1448,35 @@
         transitions: { title: 'Transitions', icon: '➡️', desc: 'Scene transitions' },
         text: { title: 'Text Rendering', icon: '✏️', desc: 'Text inside the video' },
         advanced: { title: 'Advanced', icon: '🔧', desc: 'Fine-tuning options' },
+      },
+      motion: {
+        intent:        { title: 'Vision',            icon: '💡', desc: 'Describe the motion piece' },
+        brief:         { title: 'Creative Brief',    icon: '📝', desc: 'Type, goal, audience, message, placement' },
+        target:        { title: 'Tool & Output',     icon: '🎯', desc: 'Motion tool, AI video model, what to produce' },
+        style:         { title: 'Visual Style',      icon: '🎨', desc: 'Motion style, mood, graphic language, palette' },
+        typography:    { title: 'Typography',        icon: '🔤', desc: 'On-screen text and how it animates' },
+        timing:        { title: 'Timing & Easing',   icon: '⏱️', desc: 'FPS, pacing, easing curves, animation principles' },
+        choreography:  { title: 'Choreography',      icon: '🎬', desc: 'Beats, transitions, camera, loops' },
+        sound:         { title: 'Sound',             icon: '🔊', desc: 'Music, SFX sync, VO, hit points' },
+        deliverables:  { title: 'Deliverables',      icon: '📦', desc: 'Ratios, formats, alpha, safe zones, cutdowns' },
+        accessibility: { title: 'Accessibility',     icon: '♿', desc: 'Flash safety, reduced motion, captions' },
+        output:        { title: 'Response Format',   icon: '📤', desc: 'Storyboard, spec, prompts, timing sheet' },
+      },
+      aftereffects: {
+        intent:      { title: 'Vision',            icon: '💡', desc: 'What do you need built?' },
+        meta:        { title: 'Task & Setup',      icon: '⚙️', desc: 'Task, AE version, executor, expression engine' },
+        comp:        { title: 'Composition',       icon: '🖼️', desc: 'Size, FPS, duration, bit depth, color, renderer' },
+        layers:      { title: 'Layers',            icon: '🗂️', desc: 'Layer types, parenting, precomps, naming' },
+        animation:   { title: 'Animation',         icon: '📈', desc: 'Techniques, easing, keyframe timing' },
+        expressions: { title: 'Expressions',       icon: 'ƒ',  desc: 'Patterns, target property, control rig' },
+        scripting:   { title: 'Scripting',         icon: '📜', desc: 'ExtendScript .jsx, ScriptUI, batch automation' },
+        rigging:     { title: 'Character Rigging', icon: '🦴', desc: 'Duik Angela, Joysticks, RubberHose, controls' },
+        three_d:     { title: '3D',                icon: '🧊', desc: 'Advanced 3D, native shapes, materials, camera' },
+        effects:     { title: 'Effects & Plugins', icon: '✨', desc: 'Native effects, AI roto, third-party plugins' },
+        mogrt:       { title: 'MOGRT / Essential Graphics', icon: '🧩', desc: 'Template controls for Premiere' },
+        render:      { title: 'Render & Export',   icon: '🎞️', desc: 'Render Queue, AME, codecs, Lottie' },
+        performance: { title: 'Performance',       icon: '⚡', desc: 'Keep the project fast' },
+        output:      { title: 'Response Format',   icon: '📤', desc: 'Guide, code, depth, troubleshooting' },
       },
       llm: {
         target:    { title: 'Target Model',     icon: '🎯',  desc: 'Model, reasoning effort, prompt structure' },
@@ -1593,6 +1777,95 @@
           'audio.native_audio': false,
           'style.medium': 'digital_illustration',
         }
+      },
+      motion: {
+        'Logo Reveal (6s)': {
+          'brief.project_type': 'logo_reveal', 'brief.duration': '0:06', 'brief.placement': ['youtube', 'website_hero'],
+          'target.tool': 'after_effects', 'target.output_kind': 'after_effects_build_plan',
+          'style.motion_style': 'flat_2d_vector', 'style.mood': ['premium_luxury', 'energetic'], 'style.graphic_language': ['bold_shapes', 'soft_blur_glow'],
+          'timing.fps': '30fps', 'timing.pacing': 'snappy', 'timing.easing': 'ease_out_expo', 'timing.overshoot': 'subtle',
+          'timing.principles': ['anticipation', 'follow_through_overlapping_action', 'slow_in_slow_out'],
+          'choreography.beats': '0:00–0:01 shapes converge from the edges\n0:01–0:03 shapes morph into the logo mark with a small overshoot\n0:03–0:05 wordmark mask-reveals left to right, tagline fades up\n0:05–0:06 hold on lockup',
+          'choreography.transitions': ['morph_shape', 'mask_wipe'], 'sound.sfx_sync': true, 'sound.hit_points': '0:03.0 mark lands',
+          'deliverables.aspect_ratios': ['16:9', '1:1', '9:16'], 'deliverables.formats': ['mp4_h264', 'prores_4444_alpha'], 'deliverables.alpha': true,
+          'output.format': 'after_effects_build_plan',
+        },
+        'Kinetic Type Promo (15s)': {
+          'brief.project_type': 'kinetic_typography', 'brief.duration': '0:15', 'brief.placement': ['instagram_reels', 'tiktok'],
+          'target.tool': 'after_effects', 'target.output_kind': 'storyboard_shot_list',
+          'style.motion_style': 'kinetic_typography', 'style.mood': ['bold', 'energetic'], 'style.background': 'solid_color',
+          'typography.case': 'uppercase', 'typography.text_animation': ['per_word_pop', 'kinetic_layout_shift', 'mask_reveal'], 'typography.read_time': '1s',
+          'timing.fps': '30fps', 'timing.pacing': 'rhythmic_on_beat', 'timing.bpm': 124, 'timing.easing': 'ease_out_quint', 'timing.stagger': '2 frames per word',
+          'choreography.transitions': ['match_cut', 'zoom_through', 'push_slide'], 'sound.music': 'driving house, 124 BPM', 'sound.sound_off_safe': true,
+          'deliverables.aspect_ratios': ['9:16'], 'deliverables.safe_zones': ['tiktok_ui_safe', 'instagram_reels_ui_safe'], 'deliverables.formats': ['mp4_h264'],
+          'output.format': 'storyboard_table',
+        },
+        'Lottie UI Micro-interaction': {
+          'brief.project_type': 'ui_micro_interaction', 'brief.duration': '0:01', 'brief.placement': ['app_ui'],
+          'target.tool': 'lottie_creator', 'target.output_kind': 'lottie_ready_spec',
+          'style.motion_style': 'flat_2d_vector', 'style.graphic_language': ['bold_shapes', 'outline_strokes'], 'style.background': 'transparent_alpha',
+          'timing.fps': '60fps', 'timing.easing': 'spring_physics', 'timing.custom_bezier': 'spring(stiffness 400, damping 25)', 'timing.overshoot': 'subtle',
+          'timing.principles': ['squash_and_stretch', 'anticipation', 'follow_through_overlapping_action'],
+          'deliverables.formats': ['lottie_json', 'dotlottie'], 'deliverables.alpha': true, 'deliverables.max_file_size': 'Lottie under 30 KB; shape layers only, no raster images',
+          'accessibility.reduced_motion': true, 'output.format': 'animation_spec_document',
+        },
+        'Vertical Social Ad (AI video)': {
+          'brief.project_type': 'social_ad', 'brief.duration': '0:15', 'brief.placement': ['tiktok', 'instagram_reels'],
+          'target.tool': 'ai_video_model', 'target.ai_video_model': 'kling_3_0_omni', 'target.output_kind': 'ai_video_prompts_per_shot',
+          'style.motion_style': '3d_cgi', 'style.mood': ['playful', 'bold'],
+          'choreography.beats': 'Shot 1 (0–4s): hook — product bursts out of a paper bag\nShot 2 (4–10s): three benefits as floating 3D icons orbiting the product\nShot 3 (10–15s): end card with CTA',
+          'choreography.camera': '3d_camera_orbit', 'sound.sound_off_safe': true,
+          'deliverables.aspect_ratios': ['9:16'], 'deliverables.safe_zones': ['tiktok_ui_safe', 'instagram_reels_ui_safe'],
+          'output.format': 'shot_by_shot_prompts',
+        },
+        'Explainer Scene (Rive / code)': {
+          'brief.project_type': 'explainer', 'brief.duration': '0:30', 'brief.placement': ['website_hero'],
+          'target.tool': 'rive', 'target.output_kind': 'animation_spec_for_animator',
+          'style.motion_style': 'isometric', 'style.mood': ['friendly', 'techy'], 'style.graphic_language': ['gradients', 'soft_blur_glow'],
+          'timing.fps': '60fps', 'timing.easing': 'ease_in_out_sine', 'choreography.loop': 'seamless_loop',
+          'deliverables.formats': ['rive_riv'], 'accessibility.reduced_motion': true, 'output.format': 'animation_spec_document',
+        },
+      },
+      aftereffects: {
+        'Auto-sizing Lower Third (MOGRT)': {
+          'meta.task': 'build_mogrt_template', 'meta.assistant': 'llm_chat',
+          'comp.name': 'LT_Main_1920', 'comp.resolution': '1920x1080', 'comp.fps': '29.97', 'comp.duration': '0:00:06:00',
+          'layers.types': ['shape_layers', 'text_layers', 'null_objects'], 'layers.structure': 'CTRL null → parents SHP_Box and TXT_Name/TXT_Title; box sized from text',
+          'animation.techniques': ['keyframes', 'graph_editor_curves', 'text_animators_range_selectors', 'track_mattes'], 'animation.easing': 'strong_ease_out_influence',
+          'expressions.patterns': ['sourceRectAtTime_autosize', 'expression_controls_rig', 'linear_ease_remap'], 'expressions.target_property': 'SHP_Box › Rectangle Path › Size',
+          'mogrt.enabled': true, 'mogrt.exposed_controls': 'Name text, Title text, Accent colour, Box padding slider, Side (Left/Right) dropdown', 'mogrt.responsive_time': true, 'mogrt.autosize': true,
+          'output.deliverable': 'build_guide_plus_code', 'output.explanation_depth': 'explain_each_step',
+        },
+        'Expression Helper (wiggle / loop)': {
+          'meta.task': 'write_expression', 'meta.assistant': 'llm_chat',
+          'expressions.patterns': ['wiggle', 'loopOut_cycle', 'seedRandom_random', 'expression_controls_rig'],
+          'expressions.target_property': 'Position of every layer in the precomp',
+          'output.deliverable': 'expression_code_blocks', 'output.explanation_depth': 'brief_comments',
+        },
+        'Batch Render Script (.jsx)': {
+          'meta.task': 'write_extendscript_jsx', 'meta.assistant': 'claude_code_writes_jsx_files',
+          'scripting.script_type': 'jsx_run_once',
+          'scripting.requirements': ['undo_group', 'try_catch_error_alerts', 'es3_only_no_let_const_arrow', 'batch_over_project_items', 'progress_feedback'],
+          'scripting.output_location': '~/Renders/{compName}.mov',
+          'render.method': 'render_queue', 'render.codec': 'prores_422_hq',
+          'output.deliverable': 'complete_jsx_script', 'output.explanation_depth': 'brief_comments',
+        },
+        'Duik Character Rig': {
+          'meta.task': 'rig_character', 'meta.skill_level': 'intermediate',
+          'rigging.tool': 'duik_angela', 'rigging.character_type': 'flat_2d_vector',
+          'rigging.controls': 'IK arms and legs with auto-bend, head turn joystick, blink and mouth sliders, walk cycle with speed control',
+          'layers.types': ['shape_layers', 'null_objects', 'precomps'], 'effects.plugin_policy': 'free_plugins_ok',
+          'output.deliverable': 'step_by_step_build_guide', 'output.explanation_depth': 'explain_each_step',
+        },
+        'Logo Reveal Build (Advanced 3D)': {
+          'meta.task': 'build_comp_step_by_step',
+          'comp.resolution': '3840x2160', 'comp.fps': '24', 'comp.duration': '0:00:06:00', 'comp.bit_depth': '16bpc', 'comp.renderer': 'advanced_3d',
+          'three_d.approach': 'native_3d_shapes_substance', 'three_d.materials': 'brushed metal logo extrusion, dark glossy floor', 'three_d.lighting': 'environment_light_hdri', 'three_d.depth_of_field': true,
+          'three_d.camera_moves': 'slow orbit 25° with gentle dolly-in, ends on straight-on lockup',
+          'effects.native': ['glow', 'fractal_noise', 'camera_lens_blur'], 'effects.plugin_policy': 'native_only',
+          'animation.motion_blur': true, 'render.method': 'adobe_media_encoder', 'render.codec': 'h264_mp4',
+          'output.deliverable': 'step_by_step_build_guide',
+        },
       },
       llm: {
         'Claude System Prompt (XML)': {
@@ -2403,8 +2676,9 @@
         }
         target[parts.at(-1)] = typeof value === 'string' ? resolveSentinel(value) : value;
       }
-      const profiles = hasOwn(MODEL_PROFILES, type) ? MODEL_PROFILES[type] : null;
-      const modelKey = Object.keys(SCHEMAS[type]).find(key => SCHEMAS[type][key].modelProfiles === type);
+      // A field marked `modelProfiles: '<family>'` drives the guidance block (e.g. Motion Design reuses the video family).
+      const modelKey = Object.keys(visible).find(key => hasOwn(MODEL_PROFILES, SCHEMAS[type][key]?.modelProfiles ?? ''));
+      const profiles = modelKey && MODEL_PROFILES[SCHEMAS[type][modelKey].modelProfiles];
       const modelId = modelKey && visible[modelKey];
       if (profiles && typeof modelId === 'string' && hasOwn(profiles, modelId)) result.model_guidance = modelGuidance(profiles[modelId], visible);
       return result;
@@ -3120,7 +3394,14 @@
 
       const buildNestedJSON = useCallback((data, type = promptType) =>
         JSON.stringify(type ? buildPromptObject(type, data) : {}, null, 2), [promptType]);
-      const generatedJSON = useMemo(() => buildNestedJSON(formData), [formData, buildNestedJSON]);
+      // formData is reset by an effect after promptType changes, so the first render of a new builder can still hold the
+      // previous builder's keys — keep only this schema's fields so the live preview never throws mid-switch.
+      const generatedJSON = useMemo(() => {
+        if (!schema) return '{}';
+        const current = Object.fromEntries(Object.entries(formData).filter(([key]) =>
+          key === 'user_intent' || key === '_industries_selected' || Object.prototype.hasOwnProperty.call(schema, key)));
+        try { return buildNestedJSON(current); } catch { return '{}'; }
+      }, [formData, schema, buildNestedJSON]);
       const jsonToPlainText = useCallback(json => promptPlainText(JSON.parse(json)), []);
       const generatedPlainText = useMemo(() => jsonToPlainText(generatedJSON), [generatedJSON, jsonToPlainText]);
 
@@ -3373,7 +3654,7 @@
             <div className="max-w-4xl mx-auto">
               <div className="text-center mb-12">
                 <h1 className="text-4xl font-bold text-white mb-4">Universal Prompt Studio</h1>
-                <p className="text-purple-200 text-lg mb-6">Build structured prompts for every AI workflow — media, code, marketing, project management, and agents</p>
+                <p className="text-purple-200 text-lg mb-6">Build structured prompts for every AI workflow — image, video, motion design, After Effects, code, marketing, project management, and agents</p>
                 <div className="mb-4">
                   <ThemeToggle mode={themeMode} setMode={setThemeMode} />
                 </div>
@@ -3578,8 +3859,9 @@
       }
 
       // === BUILDER SCREEN ===
-      const currentSectionKey = sections[currentSection];
-      const currentSectionInfo = sectionInfo[currentSectionKey];
+      // Clamp: the section index is reset by an effect, one render after switching to a builder with fewer sections.
+      const currentSectionKey = sections[Math.min(currentSection, sections.length - 1)];
+      const currentSectionInfo = sectionInfo[currentSectionKey] || {};
       const searchActive = fieldSearch.trim().length > 0;
       const searchLower = fieldSearch.trim().toLowerCase();
       const currentFields = searchActive

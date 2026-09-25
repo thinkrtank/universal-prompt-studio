@@ -4,7 +4,7 @@ import { core } from '../mcp/core.mjs';
 const plain = value => JSON.parse(JSON.stringify(value));
 
 test('every builder default and preset generates JSON and matching plain text', () => {
-  assert.equal(Object.keys(core.SCHEMAS).length, 11);
+  assert.equal(Object.keys(core.SCHEMAS).length, 13);
   for (const type of Object.keys(core.SCHEMAS)) {
     for (const data of [{}, ...Object.values(core.PRESETS[type] || {})]) {
       const output = core.buildPromptObject(type, { ...core.defaultFormData(type), ...data });
@@ -76,6 +76,9 @@ test('model guidance emits native syntax and compatibility warnings', () => {
   const llm = core.buildPromptObject('llm', { 'meta.target_model': 'claude_opus_5_5' });
   assert.equal(llm.model_guidance.api_model_id, 'claude-opus-5-5');
   assert.equal(core.buildPromptObject('image', { 'meta.target_model': 'best_fit' }).model_guidance, undefined);
+  const motion = core.buildPromptObject('motion', { 'target.tool': 'ai_video_model', 'target.ai_video_model': 'veo_3_1' });
+  assert.match(motion.model_guidance.target_model, /Veo 3\.1/);
+  assert.equal(core.buildPromptObject('motion', { 'target.tool': 'after_effects' }).model_guidance, undefined);
   const lyria = core.buildPromptObject('audio', { 'meta.target_tool': 'google_flow_music_lyria', 'meta.duration': '4:00' });
   assert.match(lyria.model_guidance.compatibility_warnings[0], /exceeds the 180 s maximum/);
 });
