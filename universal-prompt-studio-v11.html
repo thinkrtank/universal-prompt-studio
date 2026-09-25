@@ -236,6 +236,36 @@
         local_other:       { label: 'Other local model (Ollama / LM Studio)', status: 'current',
           notes: ['Smaller models need shorter prompts, one task at a time, and a concrete example of the output.'] },
       },
+      audio: {
+        suno:                    { label: 'Suno v6 / v6-wild / v6-mini', status: 'current',
+          notes: ['Put genre, mood, instruments and vocal style in the Styles box; put lyrics in the Lyrics box.', 'Structure lyrics with metatags: [Intro] [Verse] [Pre-Chorus] [Chorus] [Bridge] [Outro].', 'Use Exclude Styles for things to avoid; v6-wild is more experimental, v6-mini is faster.'] },
+        udio:                    { label: 'Udio', status: 'current',
+          notes: ['Being rebuilt as a licensed platform — check current download/export terms before commercial use.', 'Describe genre, era and production; use [Verse]/[Chorus] tags in custom lyrics.'] },
+        elevenlabs:              { label: 'ElevenLabs Eleven v3 (voice / dialogue)', status: 'current',
+          notes: ['Steer delivery with inline audio tags such as [whispers], [laughs], [sighs], [excited].', 'Supports 70+ languages and multi-speaker dialogue — label each speaker line.', 'Use Multilingual v2 for long-form stability, Flash v2.5 for low latency.'] },
+        elevenlabs_music:        { label: 'ElevenLabs Music v2.5', status: 'current', limits: { min_duration: 3, max_duration: 300 },
+          notes: ['3 s to 5 min tracks: describe sections in order with their mood and instrumentation.', 'Specify vocals (or instrumental), BPM and key for tighter control.'] },
+        elevenlabs_sfx:          { label: 'ElevenLabs Sound Effects v2', status: 'current',
+          notes: ['Describe one sound event concretely (source, material, space, distance); set duration and whether it loops.'] },
+        google_flow_music_lyria: { label: 'Google Lyria 3.5 (Gemini / Flow Music)', status: 'current', limits: { max_duration: 180 },
+          notes: ['Songs up to 3 minutes with vocals: describe genre, instruments, vocal style and lyrics theme.'] },
+        gemini_tts:              { label: 'Gemini 3.8 Flash TTS (voice design)', status: 'current',
+          notes: ['Direct the performance in natural language (tone, pace, accent, emotion) before the script.', 'Supports voice design from a description and multi-speaker scripts.'] },
+        openai_tts:              { label: 'OpenAI gpt-4o-mini-tts', status: 'current',
+          notes: ['Pass delivery instructions separately from the text: tone, accent, pacing, emotion.'] },
+        google_tts:              { label: 'Google Cloud Text-to-Speech', status: 'current',
+          notes: ['Use SSML for pauses, emphasis and pronunciation; pick a Chirp HD voice for natural delivery.'] },
+        cartesia:                { label: 'Cartesia Sonic (real-time voice)', status: 'current',
+          notes: ['Low-latency streaming voices for agents; keep sentences short and add explicit pauses.'] },
+        stable_audio:            { label: 'Stable Audio 3.0 (open weights)', status: 'current', limits: { max_duration: 380 },
+          notes: ['Prompt like a producer: genre, instruments, BPM and key; up to ~6 min.', 'Small SFX model for sound effects; runs locally.'] },
+        minimax_music:           { label: 'MiniMax Music 3.0 (open weights)', status: 'current',
+          notes: ['Give a style description plus lyrics with section tags.'] },
+        minimax_speech:          { label: 'MiniMax Speech 2.8', status: 'current',
+          notes: ['Multilingual TTS with voice cloning; specify emotion and speaking rate.'] },
+        adobe_podcast:           { label: 'Adobe Podcast (Enhance Speech)', status: 'current',
+          notes: ['Cleans up existing recordings — use this builder to write the script and recording notes.'] },
+      },
     };
     const isSet = v => v !== undefined && v !== '' && v !== null;
     const midjourneyNative = (d, variant) => {
@@ -284,7 +314,8 @@
         warnings.push(`Aspect ratio ${d['meta.aspect_ratio']} is not supported; use ${limits.aspect_ratios.join(', ')}.`);
       if (limits.resolutions && has('meta.resolution') && !limits.resolutions.includes(d['meta.resolution']))
         warnings.push(`Resolution ${d['meta.resolution']} is not supported; use ${limits.resolutions.join(', ')}.`);
-      const seconds = has('meta.duration') ? parseFloat(d['meta.duration']) : NaN;
+      const duration = has('meta.duration') ? String(d['meta.duration']) : '';
+      const seconds = duration.includes(':') ? duration.split(':').reduce((total, part) => total * 60 + Number(part), 0) : parseFloat(duration);
       if (Number.isFinite(seconds)) {
         if (limits.durations && !limits.durations.includes(seconds)) warnings.push(`Duration ${d['meta.duration']} is not available; clips are ${limits.durations.join(', ')} s — extend or stitch for longer.`);
         if (limits.max_duration && seconds > limits.max_duration) warnings.push(`Duration ${d['meta.duration']} exceeds the ${limits.max_duration} s maximum — extend or stitch clips.`);
@@ -605,7 +636,7 @@
       'frontend.component_library': { type: 'select', label: 'Component Library', options: ['none', 'shadcn_ui', 'radix', 'material_ui', 'ant_design', 'chakra', 'headless_ui', 'daisyui', 'mantine'], default: 'none', section: 'frontend' },
       'frontend.responsive_strategy': { type: 'select', label: 'Responsive Strategy', options: ['mobile_first', 'desktop_first', 'fluid'], default: 'mobile_first', section: 'frontend' },
       'frontend.accessibility_level': { type: 'select', label: 'Accessibility Level', options: ['wcag_aa', 'wcag_aaa', 'basic', 'none'], default: 'wcag_aa', section: 'frontend' },
-      'frontend.meta_framework': { type: 'select', label: 'Meta Framework', options: ['none', 'nextjs_app_router', 'nextjs_pages', 'nuxt3', 'sveltekit', 'remix', 'astro'], default: 'none', section: 'frontend' },
+      'frontend.meta_framework': { type: 'select', label: 'Meta Framework', options: ['none', 'nextjs_app_router', 'nextjs_pages', 'nuxt4', 'sveltekit', 'react_router_framework_mode', 'tanstack_start', 'astro'], default: 'none', placeholder: 'Remix is now React Router framework mode; Nuxt 3 reached end-of-life July 2026.', section: 'frontend' },
       'frontend.rendering': { type: 'select', label: 'Rendering Strategy', options: ['csr', 'ssr', 'ssg', 'isr', 'streaming', 'hybrid'], section: 'frontend' },
       // Backend
       'backend.server_framework': { type: 'select', label: 'Server Framework', options: ['express', 'fastify', 'hono', 'nestjs', 'fastapi', 'django_rest', 'rails', 'spring_boot', 'gin', 'fiber', 'actix_web', 'dotnet_minimal_api'], section: 'backend' },
@@ -623,7 +654,7 @@
       'database.seeding': { type: 'checkbox', label: 'Include seed data', section: 'database' },
       // Auth
       'auth.strategy': { type: 'select', label: 'Auth Strategy', options: ['jwt_stateless', 'session_cookie', 'oauth2_only', 'magic_link', 'passkeys_webauthn', 'api_keys', 'none'], section: 'auth' },
-      'auth.auth_provider': { type: 'select', label: 'Auth Provider', options: ['custom', 'better_auth', 'clerk', 'auth0', 'supabase_auth', 'firebase_auth', 'nextauth_authjs', 'lucia', 'kinde', 'keycloak', 'workos'], section: 'auth' },
+      'auth.auth_provider': { type: 'select', label: 'Auth Provider', options: ['custom', 'better_auth', 'clerk', 'auth0', 'supabase_auth', 'firebase_auth', 'nextauth_authjs', 'kinde', 'keycloak', 'workos', 'stack_auth'], optionLabels: { nextauth_authjs: 'NextAuth / Auth.js (maintenance mode)', custom: 'custom (sessions per the Lucia guide)' }, section: 'auth' },
       'auth.social_providers': { type: 'multiselect', label: 'Social Providers', options: ['google', 'github', 'apple', 'microsoft', 'discord', 'twitter', 'facebook', 'linkedin'], section: 'auth' },
       'auth.mfa': { type: 'checkbox', label: 'Multi-factor authentication', section: 'auth' },
       'auth.rbac': { type: 'checkbox', label: 'Role-based access control', section: 'auth' },
@@ -707,7 +738,7 @@
       'content.tone': { type: 'select', label: 'Content Tone', options: ['professional', 'casual', 'playful', 'authoritative', 'friendly', 'inspirational', 'humorous', 'educational', 'conversational'], section: 'content' },
       'content.content_pillars': { type: 'textarea', label: 'Content Pillars', placeholder: 'Core themes your content revolves around...', section: 'content' },
       'content.repurposing_strategy': { type: 'select', label: 'Repurposing Strategy', options: ['none', 'blog_to_social', 'video_to_clips', 'podcast_to_blog', 'full_omnichannel'], section: 'content' },
-      'content.ai_content_tools': { type: 'multiselect', label: 'AI Content Tools', options: ['chatgpt', 'claude', 'jasper', 'copy_ai', 'writesonic', 'grammarly', 'surfer_seo', 'frase', 'hubspot_breeze'], section: 'content' },
+      'content.ai_content_tools': { type: 'multiselect', label: 'AI Content Tools', options: ['chatgpt', 'claude', 'gemini', 'jasper', 'copy_ai', 'writesonic', 'grammarly', 'superhuman_go', 'surfer_seo', 'frase', 'hubspot_breeze'], optionLabels: { copy_ai: 'Copy.ai (Fullcast)', hubspot_breeze: 'HubSpot Breeze / Agent Hub', writesonic: 'Writesonic (AI search / GEO)' }, section: 'content' },
       // Channel Strategy
       'channels.social_platforms': { type: 'multiselect', label: 'Social Platforms', options: ['instagram', 'tiktok', 'linkedin', 'twitter_x', 'facebook', 'youtube', 'pinterest', 'reddit', 'threads', 'bluesky', 'discord'], section: 'channels' },
       'channels.email': { type: 'checkbox', label: 'Email marketing', default: true, section: 'channels' },
@@ -767,11 +798,11 @@
       'analytics.optimization_cadence': { type: 'select', label: 'Optimization Cadence', options: ['daily', 'weekly', 'bi_weekly', 'monthly', 'quarterly'], section: 'analytics' },
       // AI Tools
       'ai_tools.content_gen': { type: 'checkbox', label: 'AI content generation', section: 'ai_tools' },
-      'ai_tools.content_gen_tools': { type: 'multiselect', label: 'Content Gen Tools', options: ['chatgpt', 'claude', 'gemini', 'jasper', 'copy_ai', 'writesonic', 'notion_ai', 'hubspot_breeze', 'frase'], section: 'ai_tools', condition: 'ai_tools.content_gen' },
+      'ai_tools.content_gen_tools': { type: 'multiselect', label: 'Content Gen Tools', options: ['chatgpt', 'claude', 'gemini', 'jasper', 'copy_ai', 'writesonic', 'notion_ai', 'hubspot_breeze', 'frase', 'superhuman_go'], optionLabels: { copy_ai: 'Copy.ai (Fullcast)', hubspot_breeze: 'HubSpot Breeze / Agent Hub' }, section: 'ai_tools', condition: 'ai_tools.content_gen' },
       'ai_tools.image_gen': { type: 'checkbox', label: 'AI image generation', section: 'ai_tools' },
-      'ai_tools.image_gen_tools': { type: 'multiselect', label: 'Image Gen Tools', options: ['gemini_nano_banana_2', 'gemini_nano_banana_pro', 'gpt_image_2', 'midjourney', 'flux_2', 'ideogram', 'recraft', 'leonardo', 'stable_diffusion', 'canva_ai', 'adobe_firefly'], section: 'ai_tools', condition: 'ai_tools.image_gen' },
+      'ai_tools.image_gen_tools': { type: 'multiselect', label: 'Image Gen Tools', options: ['gpt_image_2_5', 'gpt_image_2', 'gemini_nano_banana_2', 'gemini_nano_banana_pro', 'midjourney', 'flux_2', 'ideogram', 'recraft', 'seedream', 'qwen_image', 'grok_imagine', 'krea', 'leonardo', 'stable_diffusion', 'canva_ai', 'adobe_firefly'], section: 'ai_tools', condition: 'ai_tools.image_gen' },
       'ai_tools.video_gen': { type: 'checkbox', label: 'AI video generation', section: 'ai_tools' },
-      'ai_tools.video_gen_tools': { type: 'multiselect', label: 'Video Gen Tools', options: ['veo', 'runway', 'kling', 'hailuo', 'grok_imagine', 'ltx', 'pika', 'luma_dream_machine', 'synthesia', 'heygen', 'descript'], section: 'ai_tools', condition: 'ai_tools.video_gen' },
+      'ai_tools.video_gen_tools': { type: 'multiselect', label: 'Video Gen Tools', options: ['gemini_omni', 'veo', 'kling', 'seedance', 'runway', 'luma_ray', 'hailuo', 'wan', 'vidu', 'grok_imagine', 'ltx', 'pika', 'luma_dream_machine', 'adobe_firefly_video', 'synthesia', 'heygen', 'colossyan', 'descript'], section: 'ai_tools', condition: 'ai_tools.video_gen' },
       'ai_tools.personalization': { type: 'checkbox', label: 'AI personalization', section: 'ai_tools' },
       'ai_tools.predictive_analytics': { type: 'checkbox', label: 'Predictive analytics', section: 'ai_tools' },
       'ai_tools.chatbot': { type: 'checkbox', label: 'AI chatbot', section: 'ai_tools' },
@@ -829,7 +860,7 @@
       'frontend.component_library': { type: 'select', label: 'Component Library', options: ['none', 'shadcn_ui', 'material_ui', 'chakra_ui', 'ant_design', 'headless_ui', 'daisyui'], default: 'none', placeholder: 'Pre-built UI components. shadcn/ui is the most popular for React + Tailwind.', section: 'frontend' },
 
       // Meta-Framework
-      'meta_framework.choice': { type: 'select', label: 'Meta-Framework', options: ['Next.js', 'Nuxt', 'SvelteKit', 'Remix', 'TanStack Start', 'Astro', 'none_vite_only'], default: 'Next.js', placeholder: 'Next.js is the fully assembled car. The engine is still React.', section: 'meta_framework' },
+      'meta_framework.choice': { type: 'select', label: 'Meta-Framework', options: ['Next.js', 'Nuxt', 'SvelteKit', 'React Router (framework mode)', 'TanStack Start', 'Astro', 'none_vite_only'], default: 'Next.js', placeholder: 'Next.js is the fully assembled car. The engine is still React.', section: 'meta_framework' },
       'meta_framework.rendering': { type: 'select', label: 'Rendering Strategy', options: ['SSR', 'SSG', 'ISR', 'SPA', 'hybrid'], default: 'SSR', placeholder: 'SSR pre-builds HTML on the server for faster loads and better SEO.', section: 'meta_framework' },
 
       // Styling
@@ -851,17 +882,17 @@
       'state.forms': { type: 'select', label: 'Form Library', options: ['React Hook Form', 'Formik', 'native', 'none'], default: 'React Hook Form', placeholder: 'The standard combo in 2026: Zustand + TanStack Query + React Hook Form.', section: 'state' },
 
       // Auth & Security
-      'auth.provider': { type: 'select', label: 'Auth Provider', options: ['Supabase Auth', 'Better Auth', 'Clerk', 'NextAuth_Auth.js', 'Firebase Auth', 'none'], default: 'Supabase Auth', placeholder: 'Built into Supabase. Best if you are already using Supabase for your database. Better Auth is the framework-agnostic, self-hosted favorite.', section: 'auth' },
+      'auth.provider': { type: 'select', label: 'Auth Provider', options: ['Supabase Auth', 'Better Auth', 'Clerk', 'NextAuth_Auth.js', 'Firebase Auth', 'none'], optionLabels: { 'NextAuth_Auth.js': 'NextAuth / Auth.js (maintenance mode — Better Auth recommended)' }, default: 'Supabase Auth', placeholder: 'Built into Supabase. Best if you are already using Supabase for your database. Better Auth is the framework-agnostic, self-hosted favorite.', section: 'auth' },
       'auth.methods': { type: 'multiselect', label: 'Login Methods', options: ['email_password', 'google_oauth', 'github_oauth', 'apple_oauth', 'magic_links', 'two_factor'], section: 'auth' },
       'auth.security_notes': { type: 'textarea', label: 'Security Concerns', placeholder: 'e.g., handles payments, medical data, GDPR compliance needed, multi-tenant...', section: 'auth' },
 
       // Build & Deploy
-      'deploy.build_tool': { type: 'select', label: 'Build Tool', options: ['Vite', 'Turbopack_auto_nextjs', 'Webpack'], default: 'Vite', placeholder: 'You rarely configure this directly. Your framework handles it.', section: 'deploy' },
+      'deploy.build_tool': { type: 'select', label: 'Build Tool', options: ['Vite', 'Turbopack_auto_nextjs', 'Rspack', 'Webpack'], default: 'Vite', placeholder: 'You rarely configure this directly. Your framework handles it. Vite 8 bundles with Rolldown.', section: 'deploy' },
       'deploy.platform': { type: 'select', label: 'Deployment Platform', options: ['Vercel', 'Netlify', 'Railway', 'Cloudflare', 'AWS', 'Render', 'self_hosted'], default: 'Vercel', placeholder: 'Created Next.js. Optimized for frontend + full-stack JS. Generous free tier.', section: 'deploy' },
       'deploy.git': { type: 'select', label: 'Git Platform', options: ['GitHub', 'GitLab', 'Bitbucket', 'none'], default: 'GitHub', placeholder: 'Most deployment platforms auto-deploy from GitHub pushes.', section: 'deploy' },
 
       // AI Tool & Output
-      'output.target_tool': { type: 'select', label: 'Target AI Tool', options: ['any_ai_tool', 'Cursor', 'Claude Code', 'Bolt.new', 'Lovable', 'Replit', 'GitHub Copilot', 'Codex', 'Antigravity', 'Devin Desktop (formerly Windsurf)', 'ChatGPT'], default: 'any_ai_tool', placeholder: 'Cursor/Claude Code for complex projects, Bolt/Lovable for quick prototypes.', section: 'output' },
+      'output.target_tool': { type: 'select', label: 'Target AI Tool', options: ['any_ai_tool', 'Cursor', 'Claude Code', 'Bolt.new', 'Lovable', 'Replit', 'v0', 'GitHub Copilot', 'GitHub Copilot CLI', 'Codex', 'Antigravity', 'Devin Desktop (formerly Windsurf)', 'Kiro', 'Jules', 'Cline', 'Kilo Code', 'OpenCode', 'Zed', 'Warp', 'ChatGPT'], optionLabels: { Codex: 'Codex (CLI / ChatGPT app)', Antigravity: 'Antigravity (IDE / CLI)' }, default: 'any_ai_tool', placeholder: 'Cursor/Claude Code for complex projects, Bolt/Lovable for quick prototypes.', section: 'output' },
       'output.prompt_style': { type: 'select', label: 'Prompt Style', options: ['comprehensive', 'concise', 'step_by_step'], default: 'comprehensive', placeholder: 'Comprehensive gives AI the most context. Step-by-step breaks the build into phases.', section: 'output' },
       'output.include_stack_rationale': { type: 'checkbox', label: 'Include "Why this stack" section explaining each technology choice', default: true, section: 'output' },
       'output.include_file_structure': { type: 'checkbox', label: 'Include suggested folder structure (app/, components/, lib/, db/)', default: true, section: 'output' },
@@ -873,9 +904,10 @@
       user_intent: { type: 'textarea', label: 'What do you want to create?', placeholder: 'Describe the track, voiceover, or sound in plain English...', section: 'intent' },
       // Meta
       'meta.audio_type': { type: 'select', label: 'Audio Type', options: ['music', 'voice', 'sfx', 'podcast'], default: 'music', section: 'meta' },
-      'meta.target_tool': { type: 'select', label: 'Target Tool', options: ['', 'suno', 'udio', 'elevenlabs', 'google_flow_music_lyria', 'cartesia', 'openai_tts', 'google_tts', 'stable_audio', 'adobe_podcast'], section: 'meta' },
-      'meta.duration': { type: 'select', label: 'Duration', options: ['', '0:15', '0:30', '1:00', '2:00', '3:00', 'full_song'], section: 'meta' },
+      'meta.target_tool': { type: 'select', label: 'Target Tool', options: profileOptions('audio'), optionLabels: profileLabels('audio'), modelProfiles: 'audio', placeholder: 'Adds tool-specific syntax tips (Suno metatags, ElevenLabs audio tags) and duration checks.', section: 'meta' },
+      'meta.duration': { type: 'select', label: 'Duration', options: ['', '0:05', '0:10', '0:15', '0:30', '1:00', '2:00', '3:00', '4:00', '5:00', 'full_song'], section: 'meta' },
       'meta.format': { type: 'select', label: 'Output Format', options: ['mp3', 'wav', 'flac', 'ogg'], default: 'mp3', section: 'meta' },
+      'meta.use_case': { type: 'select', label: 'Use Case', options: ['', 'song_release', 'background_music', 'ad_jingle', 'game_audio', 'podcast_intro', 'audiobook', 'explainer_voiceover', 'ivr_phone_prompt', 'voice_agent', 'video_sfx', 'meditation'], section: 'meta' },
       // Music
       'music.genre': { type: 'text', label: 'Genre / Style', placeholder: 'e.g., lo-fi hip hop, cinematic orchestral, synthwave', section: 'music' },
       'music.mood': { type: 'multiselect', label: 'Mood', options: ['uplifting', 'melancholic', 'energetic', 'calm', 'dark', 'dreamy', 'epic', 'playful', 'tense', 'romantic', 'nostalgic', 'aggressive'], section: 'music' },
@@ -885,9 +917,18 @@
       'music.instruments': { type: 'multiselect', label: 'Instruments', options: ['piano', 'acoustic_guitar', 'electric_guitar', 'bass', 'drums', 'synth', 'strings', 'brass', 'woodwinds', 'vocals', 'choir', '808', 'percussion', 'organ', 'pads'], section: 'music' },
       'music.vocals': { type: 'select', label: 'Vocals', options: ['none', 'male_lead', 'female_lead', 'duet', 'choir', 'rap', 'spoken_word'], default: 'none', section: 'music' },
       'music.structure': { type: 'text', label: 'Song Structure', placeholder: 'e.g., intro - verse - chorus - verse - chorus - bridge - outro', section: 'music' },
+      'music.time_signature': { type: 'select', label: 'Time Signature', options: ['', '4/4', '3/4', '6/8', '12/8', '5/4', '7/8'], section: 'music' },
+      'music.vocal_style': { type: 'text', label: 'Vocal Style', placeholder: 'e.g., breathy falsetto, raspy belt, soft harmonies, auto-tuned', section: 'music' },
+      'music.instrumental_only': { type: 'checkbox', label: 'Instrumental only (no vocals)', section: 'music' },
+      'music.dynamics': { type: 'text', label: 'Energy Arc / Dynamics', placeholder: 'e.g., sparse intro, build into explosive chorus, breakdown at 2:00', section: 'music' },
+      'music.era': { type: 'text', label: 'Era / Production Reference', placeholder: 'e.g., late-90s trip-hop, 2020s hyperpop, 70s soul', section: 'music' },
+      'music.exclude_styles': { type: 'text', label: 'Exclude Styles / Avoid', placeholder: 'e.g., no EDM drops, no autotune, no spoken word', section: 'music' },
       // Lyrics
       'lyrics.content': { type: 'textarea', label: 'Lyrics', placeholder: 'Write the lyrics, or describe the theme for the AI to write them...', section: 'lyrics' },
       'lyrics.language': { type: 'text', label: 'Language', placeholder: 'e.g., English, Spanish', section: 'lyrics' },
+      'lyrics.section_tags': { type: 'checkbox', label: 'Format lyrics with [Verse] / [Chorus] section tags', default: true, section: 'lyrics' },
+      'lyrics.rhyme_scheme': { type: 'select', label: 'Rhyme Scheme', options: ['', 'AABB', 'ABAB', 'ABCB', 'free_verse', 'internal_rhymes_heavy'], section: 'lyrics' },
+      'lyrics.explicit': { type: 'select', label: 'Content Rating', options: ['', 'clean', 'explicit_ok'], section: 'lyrics' },
       // Voice
       'voice.voice_style': { type: 'text', label: 'Voice Style', placeholder: 'e.g., warm narrator, energetic announcer, calm meditative', section: 'voice' },
       'voice.gender': { type: 'select', label: 'Voice Gender', options: ['', 'male', 'female', 'neutral'], section: 'voice' },
@@ -896,23 +937,40 @@
       'voice.emotion': { type: 'select', label: 'Emotion', options: ['', 'neutral', 'happy', 'excited', 'serious', 'sad', 'authoritative', 'friendly', 'dramatic'], section: 'voice' },
       'voice.pacing': { type: 'select', label: 'Pacing', options: ['', 'very_slow', 'slow', 'natural', 'fast', 'very_fast'], section: 'voice' },
       'voice.script': { type: 'textarea', label: 'Script / Text to Speak', placeholder: 'The exact words to be spoken...', section: 'voice' },
+      'voice.audio_tags': { type: 'multiselect', label: 'Inline Delivery Tags (ElevenLabs v3 style)', options: ['[whispers]', '[laughs]', '[sighs]', '[excited]', '[sarcastic]', '[curious]', '[pause]', '[shouts]', '[crying]', '[clears throat]'], section: 'voice' },
+      'voice.voice_design': { type: 'textarea', label: 'Voice Design (describe a new voice)', placeholder: 'e.g., late-40s woman, low warm timbre, slight Irish lilt, unhurried, smiles through words', section: 'voice' },
+      'voice.speakers': { type: 'textarea', label: 'Multi-Speaker Dialogue', placeholder: 'Host (upbeat): Welcome back!\nGuest (calm, dry humour): Glad to be here.', section: 'voice' },
+      'voice.pronunciation': { type: 'textarea', label: 'Pronunciation Guide', placeholder: 'e.g., Nguyen = "win", SQL = "sequel", Anthropic = "an-THROP-ik"', section: 'voice' },
+      // Sound effects
+      'sfx.description': { type: 'textarea', label: 'Sound Event', placeholder: 'e.g., heavy oak door creaks open slowly, then slams in a stone hallway', section: 'sfx' },
+      'sfx.duration_seconds': { type: 'number', label: 'SFX Duration (seconds)', min: 0.5, max: 30, step: 0.5, section: 'sfx' },
+      'sfx.loop': { type: 'checkbox', label: 'Seamless loop', section: 'sfx' },
+      'sfx.perspective': { type: 'select', label: 'Mic Perspective / Space', options: ['', 'close_mic_dry', 'small_room', 'large_hall', 'outdoor_open', 'underwater', 'inside_vehicle', 'distant'], section: 'sfx' },
+      'sfx.layers': { type: 'text', label: 'Layers / Variations', placeholder: 'e.g., 3 variations; layer debris + low boom + tail', section: 'sfx' },
       // Production
       'production.mixing_notes': { type: 'textarea', label: 'Mixing / Production Notes', placeholder: 'e.g., heavy reverb, lo-fi vinyl crackle, wide stereo, sidechain compression', section: 'production' },
       'production.reference_track': { type: 'text', label: 'Reference Track', placeholder: 'e.g., "sounds like Bonobo - Kerala"', section: 'production' },
+      'production.loudness': { type: 'select', label: 'Loudness Target', options: ['', '-14_LUFS_streaming', '-16_LUFS_podcast', '-23_LUFS_broadcast', '-9_LUFS_loud_master'], section: 'production' },
+      'production.stems': { type: 'checkbox', label: 'Request separate stems (vocals, drums, bass, other)', section: 'production' },
+      'production.licensing': { type: 'select', label: 'Licensing Need', options: ['', 'personal', 'commercial_use', 'broadcast_sync', 'content_id_safe'], section: 'production' },
     };
 
     const AGENT_SCHEMA = {
       user_intent: { type: 'textarea', label: 'What should this agent accomplish?', placeholder: 'Describe the agent and the job it does in plain English...', section: 'intent' },
       // Meta
       'meta.agent_name': { type: 'text', label: 'Agent Name', placeholder: 'e.g., Research Assistant, Coding Agent', section: 'meta' },
-      'meta.model': { type: 'select', label: 'Model', options: ['Claude Fable 5', 'Claude Opus 4.8', 'Claude Sonnet 5', 'Claude Haiku 4.5', 'GPT-5.6', 'Gemini 3.1 Pro', 'Gemini 3.5 Flash', 'DeepSeek V4', 'Grok 4.5', 'other'], default: 'Claude Fable 5', placeholder: 'Default to the most capable Claude model for hard agentic work; use Sonnet/Haiku for speed/cost.', section: 'meta' },
-      'meta.runtime': { type: 'select', label: 'Runtime / Framework', options: ['', 'Claude Agent SDK', 'Anthropic Managed Agents', 'MCP (Model Context Protocol)', 'A2A (Agent-to-Agent)', 'LangGraph', 'OpenAI Agents SDK', 'CrewAI', 'Google ADK', 'custom_loop'], section: 'meta' },
+      'meta.model': { type: 'select', label: 'Model', options: ['Claude Fable 5.1', 'Claude Opus 5.5', 'Claude Sonnet 5', 'Claude Haiku 4.5', 'Claude Fable 5', 'Claude Opus 4.8', 'GPT-6 Astra', 'GPT-6 Sol', 'GPT-5.6', 'Gemini 3.8 Flash', 'Gemini 3.1 Pro', 'Gemini 3.5 Flash', 'Grok 4.7', 'Grok 4.5', 'DeepSeek V4', 'Kimi K3', 'Qwen 3.8', 'GLM-5.3', 'other'], default: 'Claude Fable 5.1', placeholder: 'Fable 5.1 / Opus 5.5 for hard, long-horizon agentic work; Sonnet 5 / Haiku 4.5 for speed and cost; mix per role for subagents.', section: 'meta' },
+      'meta.effort': { type: 'select', label: 'Reasoning Effort', options: ['', 'low', 'medium', 'high', 'max'], placeholder: 'Higher effort = more thinking per step, more tokens.', section: 'meta' },
+      'meta.runtime': { type: 'select', label: 'Runtime / Framework', options: ['', 'Claude Agent SDK', 'Claude Managed Agents', 'Claude Code (headless / -p)', 'MCP (Model Context Protocol)', 'A2A (Agent-to-Agent)', 'LangGraph', 'OpenAI Agents SDK', 'Microsoft Agent Framework', 'Google ADK', 'Strands Agents', 'Amazon Bedrock AgentCore', 'Mastra', 'Pydantic AI', 'Vercel AI SDK', 'CrewAI', 'custom_loop'], section: 'meta' },
+      'meta.deployment': { type: 'select', label: 'Where It Runs', options: ['', 'local_dev_machine', 'ci_pipeline', 'scheduled_job', 'server_api', 'chat_product', 'browser_extension', 'managed_cloud_sandbox'], section: 'meta' },
       // Objective
       'objective.goal': { type: 'textarea', label: 'Primary Goal', placeholder: 'The single outcome the agent is responsible for...', section: 'objective' },
       'objective.success_criteria': { type: 'textarea', label: 'Success Criteria', placeholder: 'How do we know the task is done and correct? (gradeable, specific)', section: 'objective' },
       'objective.stop_conditions': { type: 'textarea', label: 'Stop Conditions', placeholder: 'When should the agent stop — completion, max steps, or a blocking condition?', section: 'objective' },
+      'objective.evals': { type: 'textarea', label: 'Evaluation / Test Cases', placeholder: 'Sample tasks with expected outcomes the agent is graded against...', section: 'objective' },
       // Tools
-      'tools.allowed_tools': { type: 'multiselect', label: 'Allowed Tools', options: ['web_search', 'web_fetch', 'code_execution', 'bash', 'file_read', 'file_write', 'file_edit', 'database_query', 'api_call', 'send_email', 'calendar', 'image_generation'], section: 'tools' },
+      'tools.allowed_tools': { type: 'multiselect', label: 'Allowed Tools', options: ['web_search', 'web_fetch', 'code_execution', 'bash', 'file_read', 'file_write', 'file_edit', 'database_query', 'api_call', 'send_email', 'calendar', 'image_generation', 'browser_automation', 'computer_use', 'memory_tool', 'tool_search', 'spawn_subagent'], section: 'tools' },
+      'tools.permission_mode': { type: 'select', label: 'Tool Permission Mode', options: ['', 'read_only', 'ask_before_writes', 'auto_approve_safe_actions', 'fully_autonomous_in_sandbox'], section: 'tools' },
       'tools.tool_definitions': { type: 'textarea', label: 'Custom Tool Definitions', placeholder: 'Describe any custom tools: name, what they do, inputs, outputs...', section: 'tools' },
       'tools.mcp_servers': { type: 'text', label: 'MCP Servers', placeholder: 'e.g., github, linear, filesystem', section: 'tools' },
       'tools.parallel_tools': { type: 'checkbox', label: 'Allow parallel tool calls', default: true, section: 'tools' },
@@ -921,6 +979,8 @@
       'loop.max_steps': { type: 'number', label: 'Max Steps / Iterations', placeholder: 'e.g., 25', min: 1, max: 1000, section: 'loop' },
       'loop.self_verification': { type: 'checkbox', label: 'Self-verify results before finishing', default: true, section: 'loop' },
       'loop.subagents': { type: 'checkbox', label: 'May delegate to subagents', section: 'loop' },
+      'loop.subagent_roles': { type: 'textarea', label: 'Subagent Roles & Models', placeholder: 'researcher (Haiku 4.5, read-only tools)\nimplementer (Opus 5.5, file edit + bash)\nreviewer (Sonnet 5, read-only)', section: 'loop', condition: 'loop.subagents' },
+      'loop.orchestration': { type: 'select', label: 'Multi-Agent Pattern', options: ['', 'orchestrator_workers', 'pipeline_sequential', 'parallel_fan_out_merge', 'debate_or_critic', 'handoff_routing'], section: 'loop', condition: 'loop.subagents' },
       // Memory
       'memory.state_handling': { type: 'textarea', label: 'State / Context Handling', placeholder: 'What must persist across steps? Scratchpad, memory file, vector store...', section: 'memory' },
       'memory.context_strategy': { type: 'select', label: 'Long-Context Strategy', options: ['', 'none', 'compaction', 'context_editing', 'external_memory', 'rag'], section: 'memory' },
@@ -929,6 +989,9 @@
       'guardrails.human_in_loop': { type: 'select', label: 'Human-in-the-Loop', options: ['none', 'confirm_destructive', 'confirm_all_actions', 'review_final_output'], default: 'confirm_destructive', section: 'guardrails' },
       'guardrails.sandbox': { type: 'checkbox', label: 'Run tools in a sandbox', default: true, section: 'guardrails' },
       'guardrails.cost_limit': { type: 'text', label: 'Cost / Token Budget', placeholder: 'e.g., 100k tokens per run, $2 max', section: 'guardrails' },
+      'guardrails.untrusted_content': { type: 'checkbox', label: 'Treat web pages, files and tool results as untrusted data (prompt-injection defence)', default: true, section: 'guardrails' },
+      'guardrails.checkpoints': { type: 'textarea', label: 'Approval Checkpoints', placeholder: 'e.g., before sending any email, before spending money, before deleting data', section: 'guardrails' },
+      'guardrails.observability': { type: 'select', label: 'Logging / Tracing', options: ['', 'none', 'transcript_log', 'opentelemetry_traces', 'framework_dashboard'], section: 'guardrails' },
       // Output
       'output.format': { type: 'select', label: 'Final Output Format', options: ['natural_language', 'json', 'markdown_report', 'structured_summary', 'code', 'file_artifact'], default: 'natural_language', section: 'output' },
       'output.reporting': { type: 'textarea', label: 'Progress Reporting', placeholder: 'How should the agent report progress and final results?', section: 'output' },
@@ -990,9 +1053,9 @@
       'motion.scroll_effects': { type: 'multiselect', label: 'Scroll Effects', options: ['parallax_layers', 'sticky_pinned_sections', 'horizontal_scroll_section', 'scroll_progress_bar', 'scrollytelling_steps', 'infinite_marquee', 'zoom_on_scroll', 'section_snap'], section: 'motion' },
       'motion.hover_states': { type: 'multiselect', label: 'Hover States', options: ['lift_with_shadow', 'scale_grow', 'color_shift', 'underline_slide_in', 'image_zoom', '3d_tilt', 'magnetic_cursor_pull', 'glow_border', 'reveal_caption_overlay'], section: 'motion' },
       'motion.micro_interactions': { type: 'multiselect', label: 'Micro-interactions', options: ['button_press_feedback', 'inline_form_validation', 'animated_toggles', 'success_check_animations', 'copy_to_clipboard_feedback', 'like_heart_burst', 'drag_to_reorder', 'loading_spinners_skeletons'], section: 'motion' },
-      'motion.animation_library': { type: 'select', label: 'Animation Approach', options: ['css_only_transitions', 'css_scroll_driven_animations', 'framer_motion', 'gsap_scrolltrigger', 'motion_one', 'auto_animate', 'lottie', 'rive', 'view_transitions_api'], section: 'motion' },
+      'motion.animation_library': { type: 'select', label: 'Animation Approach', options: ['css_only_transitions', 'css_scroll_driven_animations', 'motion_formerly_framer_motion', 'gsap_scrolltrigger', 'anime_js', 'auto_animate', 'lenis_smooth_scroll', 'lottie', 'rive', 'three_js_r3f', 'spline_3d', 'view_transitions_api'], section: 'motion' },
       // Tech Stack
-      'tech.framework': { type: 'select', label: 'Framework', options: ['plain_html_css_js', 'react', 'nextjs', 'vue', 'nuxt', 'svelte', 'sveltekit', 'astro', 'solid', 'angular', 'htmx_alpine', 'web_components'], placeholder: 'Plain HTML for single-file demos; React/Next.js for v0, Lovable, Bolt.', section: 'tech' },
+      'tech.framework': { type: 'select', label: 'Framework', options: ['plain_html_css_js', 'react', 'nextjs', 'tanstack_start', 'react_router', 'vue', 'nuxt', 'svelte', 'sveltekit', 'astro', 'solid', 'angular', 'htmx_alpine', 'web_components'], placeholder: 'Plain HTML for single-file demos; React/Next.js for v0, Lovable, Bolt.', section: 'tech' },
       'tech.css_approach': { type: 'select', label: 'CSS Approach', options: ['tailwind_v4', 'tailwind_v3_cdn', 'vanilla_css_modern', 'css_modules', 'sass_scss', 'styled_components', 'panda_css', 'uno_css', 'open_props', 'bootstrap'], section: 'tech' },
       'tech.component_library': { type: 'select', label: 'Component Library', options: ['shadcn_ui', 'radix_primitives', 'headless_ui', 'daisyui', 'mantine', 'chakra_ui', 'material_ui', 'ant_design', 'ark_ui', 'flowbite', 'preline', 'build_custom_from_scratch'], section: 'tech' },
       'tech.language': { type: 'select', label: 'Language', options: ['typescript', 'javascript'], default: 'typescript', section: 'tech' },
@@ -1015,7 +1078,7 @@
       'references.avoid': { type: 'textarea', label: 'What to Avoid', placeholder: 'e.g., generic bootstrap look, purple-gradient-on-dark AI cliché, stock photo handshakes, emoji in headings', section: 'references' },
       'references.existing_assets': { type: 'textarea', label: 'Existing Brand Assets', placeholder: 'Logo description, locked brand colors/fonts, design tokens, screenshots of current site...', section: 'references' },
       // Target Tool & Output
-      'output.target_tool': { type: 'select', label: 'Target AI Tool', options: ['any_ai_tool', 'v0', 'Lovable', 'Bolt.new', 'Replit', 'Claude Code', 'Cursor', 'Devin_Desktop_formerly_Windsurf', 'Google_Stitch', 'ChatGPT_Claude_chat', 'Figma_Make', 'Framer_AI'], default: 'any_ai_tool', placeholder: 'v0/Lovable/Bolt generate UI directly; Claude Code/Cursor for real codebases; chat for specs.', section: 'output' },
+      'output.target_tool': { type: 'select', label: 'Target AI Tool', options: ['any_ai_tool', 'v0', 'Lovable', 'Bolt.new', 'Replit', 'Claude Code', 'Cursor', 'Codex', 'Antigravity', 'Kiro', 'Devin_Desktop_formerly_Windsurf', 'Google_Stitch', 'ChatGPT_Claude_chat', 'Figma_Make', 'Framer_AI', 'Webflow_AI'], default: 'any_ai_tool', placeholder: 'v0/Lovable/Bolt generate UI directly; Claude Code/Cursor for real codebases; chat for specs.', section: 'output' },
       'output.output_type': { type: 'select', label: 'Output Type', options: ['working_code', 'design_spec_document', 'code_plus_design_rationale', 'wireframe_description'], default: 'working_code', section: 'output' },
       'output.include_design_tokens': { type: 'checkbox', label: 'Include design tokens (CSS variables for colors, spacing, radii, type scale)', default: true, section: 'output' },
       'output.include_section_walkthrough': { type: 'checkbox', label: 'Describe the page section-by-section, top to bottom', default: true, section: 'output' },
@@ -1103,7 +1166,7 @@
       'agile.forecasting': { type: 'select', label: 'Forecasting Method', options: ['velocity_average_of_last_3', 'flow_throughput_and_cycle_time'], default: 'velocity_average_of_last_3', placeholder: 'Velocity is an observation, not a target — never promise dates from one iteration\'s velocity. Flow metrics: right-size items, then remaining ÷ throughput = weeks left. Pick one, not both.', section: 'agile', condition: 'agile.iterative_delivery' },
       'agile.predictive_commitments': { type: 'textarea', label: 'Predictive Commitments (hybrid)', placeholder: 'Dates and scope promised to other people — each needs a milestone, a buffer, and explicit change control, even inside an adaptive build.', section: 'agile', condition: 'agile.iterative_delivery' },
       // Target Tool & Output
-      'output.target_tool': { type: 'select', label: 'Target AI Tool', options: ['any_ai_tool', 'Claude', 'ChatGPT', 'Gemini', 'Claude Code', 'Cursor', 'Notion AI'], default: 'any_ai_tool', section: 'output' },
+      'output.target_tool': { type: 'select', label: 'Target AI Tool', options: ['any_ai_tool', 'Claude', 'ChatGPT', 'Gemini', 'Microsoft 365 Copilot', 'Claude Code', 'Cursor', 'Notion AI', 'Atlassian Rovo', 'ClickUp Brain'], default: 'any_ai_tool', section: 'output' },
       'output.format': { type: 'select', label: 'Output Format', options: ['markdown_document', 'markdown_tables', 'csv_register', 'json', 'chat_summary'], default: 'markdown_document', placeholder: 'CSV register suits risk registers; markdown tables suit RACI, milestone lists, and stakeholder cadence tables.', section: 'output' },
       'output.tone': { type: 'select', label: 'Tone', options: ['plain_and_direct', 'formal_client_ready', 'coaching_explain_the_why', 'terse_checklist'], default: 'plain_and_direct', placeholder: 'Plain and direct — surface bad news early, don\'t soften bad numbers (Be an Accountable Leader).', section: 'output' },
       'output.include_seven_questions_summary': { type: 'checkbox', label: 'Open with a one-line answer to each of the Seven Questions (one per performance domain)', default: true, section: 'output' },
@@ -1121,7 +1184,7 @@
       'vision.spec_files': { type: 'textarea', label: 'Spec Files', placeholder: 'Paths to specs the loop implements — specs/auth.md, specs/api.md... Spec-driven beats imperative: the loop reads these fresh every iteration.', section: 'vision' },
       // Harness — what runs the loop
       'harness.style': { type: 'select', label: 'Loop Style', options: ['external_while_loop_classic_ralph', 'stop_hook_ralph_loop_plugin', 'built_in_loop_command', 'scheduled_cron_routine', 'background_cloud_agent'], placeholder: 'Classic Ralph: while :; do cat PROMPT.md | agent; done — fresh context each pass. Stop-hook plugin keeps one session alive. Cron suits recurring maintenance.', section: 'harness' },
-      'harness.tool': { type: 'select', label: 'Loop Runner', options: ['Claude Code', 'Codex Cloud', 'Devin', 'Cursor Background Agents', 'GitHub Copilot Agent', 'Amp', 'custom_script'], default: 'Claude Code', section: 'harness' },
+      'harness.tool': { type: 'select', label: 'Loop Runner', options: ['Claude Code', 'Claude Managed Agents', 'Codex Cloud', 'Devin', 'Cursor Cloud Agents', 'GitHub Copilot cloud agent', 'GitHub Copilot CLI', 'Jules', 'Kiro', 'Amp', 'OpenCode', 'Antigravity CLI', 'custom_script'], default: 'Claude Code', section: 'harness' },
       'harness.context_strategy': { type: 'select', label: 'Context Strategy', options: ['fresh_context_every_iteration', 'persistent_session'], default: 'fresh_context_every_iteration', placeholder: 'Fresh context is the core Ralph insight: memory lives in files on disk, not conversation history — avoids context-rot quality decay in long sessions.', section: 'harness' },
       'harness.mode': { type: 'select', label: 'Loop Mode', options: ['build_only', 'plan_only_gap_analysis', 'plan_then_build_two_prompts'], default: 'build_only', placeholder: 'Practitioners split PROMPT_plan.md (gap analysis only) from PROMPT_build.md (implement + test + commit) and alternate.', section: 'harness' },
       // Iteration contract
@@ -1194,8 +1257,8 @@
       frontend:  { icon: '🎨', title: 'Frontend Design Prompt', shortTitle: 'Frontend', desc: 'Websites & UI — visual design + implementation specs', color: 'from-sky-500 to-violet-500', pasteTarget: 'v0, Lovable, Bolt, Claude Code, or your AI design tool' },
       pm:        { icon: '📋', title: 'Project Management Prompt', shortTitle: 'PM', desc: 'PMBOK 8 — charters, plans, WBS, risk registers, EVM status', color: 'from-emerald-500 to-teal-500', pasteTarget: 'ChatGPT, Claude, or your AI assistant' },
       loop:      { icon: '🔄', title: 'Agent Loop Prompt', shortTitle: 'Loop', desc: 'Loop engineering — Ralph loops, stop conditions, verification gates', color: 'from-orange-500 to-red-500', pasteTarget: 'Claude Code, Codex Cloud, or your loop harness' },
-      audio:     { icon: '🎵', title: 'Audio Prompt', shortTitle: 'Audio', desc: 'Suno, Udio, ElevenLabs — music, voice, SFX', color: 'from-fuchsia-500 to-pink-500', pasteTarget: 'Suno, Udio, ElevenLabs, or your audio generator' },
-      agent:     { icon: '🤖', title: 'Agent Prompt', shortTitle: 'Agent', desc: 'Tool-use & multi-agent systems — MCP, Agent SDK', color: 'from-indigo-500 to-blue-500', pasteTarget: 'Claude Agent SDK, MCP, LangGraph, or your agent framework' },
+      audio:     { icon: '🎵', title: 'Audio Prompt', shortTitle: 'Audio', desc: 'Suno v6, ElevenLabs v3, Lyria 3.5 — music, voice, SFX', color: 'from-fuchsia-500 to-pink-500', pasteTarget: 'Suno, ElevenLabs, Gemini, or your audio generator' },
+      agent:     { icon: '🤖', title: 'Agent Prompt', shortTitle: 'Agent', desc: 'Tool-use & multi-agent systems — Agent SDK, MCP, subagents', color: 'from-indigo-500 to-blue-500', pasteTarget: 'Claude Agent SDK, Claude Managed Agents, LangGraph, or your agent framework' },
     };
 
     const SECTION_INFO = {
@@ -1342,8 +1405,9 @@
         meta:       { title: 'Output Settings', icon: '⚙️', desc: 'Type, tool, duration, format' },
         music:      { title: 'Music',      icon: '🎼', desc: 'Genre, mood, tempo, instruments' },
         lyrics:     { title: 'Lyrics',     icon: '✍️', desc: 'Words and theme' },
-        voice:      { title: 'Voice',      icon: '🎙️', desc: 'Narration & TTS settings' },
-        production: { title: 'Production',  icon: '🎚️', desc: 'Mixing and reference' },
+        voice:      { title: 'Voice',      icon: '🎙️', desc: 'Narration, TTS, voice design, dialogue' },
+        sfx:        { title: 'Sound Effects', icon: '💥', desc: 'Sound event, duration, loop, space' },
+        production: { title: 'Production',  icon: '🎚️', desc: 'Mixing, loudness, stems, licensing' },
       },
       agent: {
         intent:     { title: 'Vision',       icon: '💡', desc: 'What should this agent do?' },
@@ -1531,6 +1595,20 @@
         }
       },
       llm: {
+        'Claude System Prompt (XML)': {
+          'meta.target_model': 'claude_opus_5_5', 'meta.deployment': 'api_system_prompt', 'meta.prompt_format': 'xml_tags', 'meta.reasoning_effort': 'high',
+          'role.persona': 'You are a meticulous analyst who explains reasoning plainly.',
+          'task.instruction': 'Analyze the document in <document> and answer the question in <question>.',
+          'output.format': 'json', 'output.json_schema': '{ "type": "object", "properties": { "answer": { "type": "string" }, "confidence": { "type": "string", "enum": ["low", "medium", "high"] }, "quotes": { "type": "array", "items": { "type": "string" } } }, "required": ["answer", "confidence"] }',
+          'behavior.hallucination_guard': true, 'citation.style': 'inline',
+        },
+        'GPT-6 Structured Extraction': {
+          'meta.target_model': 'gpt_6_astra', 'meta.deployment': 'batch_pipeline', 'meta.prompt_format': 'markdown_sections', 'meta.reasoning_effort': 'low',
+          'task.instruction': 'Extract every invoice line item from the input text.',
+          'input.quality': 'may_have_errors', 'output.format': 'json',
+          'output.json_schema': '{ "type": "object", "properties": { "items": { "type": "array", "items": { "type": "object", "properties": { "description": { "type": "string" }, "qty": { "type": "number" }, "unit_price": { "type": "number" } } } } } }',
+          'behavior.uncertainty_handling': 'make_best_guess_and_flag',
+        },
         'Code Review': {
           'role.persona': 'You are a senior software engineer conducting a thorough code review.',
           'role.expertise': 'clean code, security, performance, best practices',
@@ -1858,7 +1936,7 @@
           'components.card_style': 'soft_shadow', 'components.button_style': 'solid_rounded', 'components.corner_radius': 'medium_8px',
           'imagery.image_style': 'product_screenshots', 'imagery.icon_style': 'outline_stroke', 'imagery.icon_library': 'lucide',
           'motion.animation_level': 'subtle', 'motion.entrance_effects': ['fade_up_on_scroll', 'staggered_reveals'],
-          'motion.hover_states': ['lift_with_shadow', 'underline_slide_in'], 'motion.animation_library': 'framer_motion',
+          'motion.hover_states': ['lift_with_shadow', 'underline_slide_in'], 'motion.animation_library': 'motion_formerly_framer_motion',
           'tech.framework': 'nextjs', 'tech.css_approach': 'tailwind_v4', 'tech.component_library': 'shadcn_ui',
           'tech.language': 'typescript', 'tech.deliverable': 'react_components',
           'responsive.strategy': 'mobile_first', 'responsive.a11y_level': 'wcag_aa',
@@ -1881,7 +1959,7 @@
           'imagery.image_style': 'abstract_shapes', 'imagery.icon_style': 'duotone', 'imagery.icon_library': 'phosphor',
           'motion.animation_level': 'moderate', 'motion.entrance_effects': ['staggered_reveals', 'number_counters', 'skeleton_to_content'],
           'motion.hover_states': ['glow_border', 'scale_grow'], 'motion.micro_interactions': ['animated_toggles', 'loading_spinners_skeletons', 'inline_form_validation'],
-          'motion.animation_library': 'framer_motion',
+          'motion.animation_library': 'motion_formerly_framer_motion',
           'tech.framework': 'react', 'tech.css_approach': 'tailwind_v4', 'tech.component_library': 'shadcn_ui',
           'tech.language': 'typescript', 'tech.deliverable': 'react_components', 'tech.interactivity': 'full_spa_with_state',
           'responsive.strategy': 'desktop_first', 'responsive.a11y_level': 'wcag_aa',
@@ -2214,10 +2292,35 @@
           'music.genre': 'upbeat electronic', 'music.mood': ['energetic', 'playful'], 'music.tempo': 'upbeat',
           'voice.voice_style': 'energetic announcer', 'voice.emotion': 'excited', 'voice.pacing': 'natural',
         },
+        'Suno v6 Pop Song': {
+          'meta.audio_type': 'music', 'meta.target_tool': 'suno', 'meta.duration': '3:00', 'meta.use_case': 'song_release',
+          'music.genre': 'indie pop', 'music.mood': ['uplifting', 'nostalgic'], 'music.tempo_bpm': 112, 'music.time_signature': '4/4',
+          'music.vocals': 'female_lead', 'music.vocal_style': 'airy verses, belted chorus, stacked harmonies',
+          'music.dynamics': 'sparse verse, lift in pre-chorus, full chorus, stripped bridge, big final chorus',
+          'music.exclude_styles': 'no EDM drop, no rap verse',
+          'lyrics.section_tags': true, 'lyrics.rhyme_scheme': 'ABAB', 'lyrics.explicit': 'clean',
+        },
+        'ElevenLabs v3 Two-Voice Dialogue': {
+          'meta.audio_type': 'voice', 'meta.target_tool': 'elevenlabs', 'meta.use_case': 'explainer_voiceover',
+          'voice.speakers': 'Host (upbeat, curious): [excited] So how does it actually work?\nExpert (calm, warm): [sighs] Honestly? Simpler than you think.',
+          'voice.audio_tags': ['[excited]', '[sighs]', '[laughs]'],
+          'voice.pronunciation': 'API = "A-P-I", GIF = "jif"',
+          'production.loudness': '-16_LUFS_podcast',
+        },
+        'Game SFX Pack': {
+          'meta.audio_type': 'sfx', 'meta.target_tool': 'elevenlabs_sfx', 'meta.use_case': 'game_audio', 'meta.format': 'wav',
+          'sfx.description': 'Magical treasure chest opening: wooden creak, metal latch click, then a shimmering sparkle burst',
+          'sfx.duration_seconds': 3, 'sfx.perspective': 'close_mic_dry', 'sfx.layers': '4 variations with slightly different sparkle tails',
+        },
+        'Lyria Background Score': {
+          'meta.audio_type': 'music', 'meta.target_tool': 'google_flow_music_lyria', 'meta.duration': '2:00', 'meta.use_case': 'background_music',
+          'music.genre': 'ambient cinematic', 'music.mood': ['calm', 'dreamy'], 'music.instrumental_only': true,
+          'music.instruments': ['piano', 'strings', 'pads'], 'production.licensing': 'commercial_use',
+        },
       },
       agent: {
         'Research Agent': {
-          'meta.agent_name': 'Research Assistant', 'meta.model': 'Claude Opus 4.8', 'meta.runtime': 'Claude Agent SDK',
+          'meta.agent_name': 'Research Assistant', 'meta.model': 'Claude Opus 5.5', 'meta.runtime': 'Claude Agent SDK',
           'objective.goal': 'Answer a research question with well-sourced, fact-checked findings.',
           'objective.success_criteria': 'A cited report where every key claim is backed by a verifiable source.',
           'tools.allowed_tools': ['web_search', 'web_fetch', 'file_write'],
@@ -2226,7 +2329,7 @@
           'output.format': 'markdown_report',
         },
         'Coding Agent (MCP)': {
-          'meta.agent_name': 'Coding Agent', 'meta.model': 'Claude Opus 4.8', 'meta.runtime': 'MCP (Model Context Protocol)',
+          'meta.agent_name': 'Coding Agent', 'meta.model': 'Claude Opus 5.5', 'meta.runtime': 'MCP (Model Context Protocol)',
           'objective.goal': 'Implement the requested change, with tests passing.',
           'objective.success_criteria': 'Code compiles, tests pass, and the change matches the spec.',
           'tools.allowed_tools': ['file_read', 'file_write', 'file_edit', 'bash', 'code_execution'],
@@ -2236,7 +2339,7 @@
           'output.format': 'code',
         },
         'Multi-Agent Orchestrator': {
-          'meta.agent_name': 'Orchestrator', 'meta.model': 'Claude Opus 4.8', 'meta.runtime': 'Anthropic Managed Agents',
+          'meta.agent_name': 'Orchestrator', 'meta.model': 'Claude Opus 5.5', 'meta.runtime': 'Claude Managed Agents',
           'objective.goal': 'Coordinate specialist subagents to complete a complex multi-part task.',
           'loop.planning_style': 'plan_then_execute', 'loop.subagents': true, 'loop.self_verification': true,
           'memory.context_strategy': 'compaction',
@@ -2301,7 +2404,8 @@
         target[parts.at(-1)] = typeof value === 'string' ? resolveSentinel(value) : value;
       }
       const profiles = hasOwn(MODEL_PROFILES, type) ? MODEL_PROFILES[type] : null;
-      const modelId = visible['meta.target_model'];
+      const modelKey = Object.keys(SCHEMAS[type]).find(key => SCHEMAS[type][key].modelProfiles === type);
+      const modelId = modelKey && visible[modelKey];
       if (profiles && typeof modelId === 'string' && hasOwn(profiles, modelId)) result.model_guidance = modelGuidance(profiles[modelId], visible);
       return result;
     };
@@ -2502,6 +2606,7 @@
       'GitHub', 'Vercel', 'Netlify', 'Supabase', 'Firebase', 'WordPress',
       'Notion', 'Airtable', 'Google Docs', 'Google Sheets', 'Shopify',
       'n8n', 'Zapier', 'MindStudio', 'HuggingFace', 'Slack',
+      'After Effects', 'Premiere Pro', 'Jitter', 'Lottie Creator', 'Rive', 'Cavalry', 'Spline',
     ];
 
     function ChainBuilder({ onBack, themeMode, setThemeMode }) {
@@ -3236,7 +3341,7 @@
                       }}
                       className="rounded"
                     />
-                    {opt.replace(/_/g, ' ')}
+                    {config.optionLabels?.[opt] || opt.replace(/_/g, ' ')}
                   </label>
                 ))}
               </div>

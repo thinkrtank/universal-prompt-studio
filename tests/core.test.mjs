@@ -42,8 +42,9 @@ test('every section has fields and every builder has complete card metadata', ()
 
 test('target model options all have profiles with notes', () => {
   for (const [type, profiles] of Object.entries(core.MODEL_PROFILES)) {
-    const field = core.SCHEMAS[type]['meta.target_model'];
-    assert.deepEqual(plain(field.options), Object.keys(profiles));
+    const fields = Object.values(core.SCHEMAS[type]).filter(field => field.modelProfiles === type);
+    assert.equal(fields.length, 1, `${type}: exactly one profile-driven field`);
+    assert.deepEqual(plain(fields[0].options), Object.keys(profiles));
     for (const [id, profile] of Object.entries(profiles)) {
       assert.ok(profile.label && profile.notes.length, `${type}.${id}: needs label and notes`);
       assert.ok(['current', 'legacy', 'early_access'].includes(profile.status), `${type}.${id}: bad status`);
@@ -75,6 +76,8 @@ test('model guidance emits native syntax and compatibility warnings', () => {
   const llm = core.buildPromptObject('llm', { 'meta.target_model': 'claude_opus_5_5' });
   assert.equal(llm.model_guidance.api_model_id, 'claude-opus-5-5');
   assert.equal(core.buildPromptObject('image', { 'meta.target_model': 'best_fit' }).model_guidance, undefined);
+  const lyria = core.buildPromptObject('audio', { 'meta.target_tool': 'google_flow_music_lyria', 'meta.duration': '4:00' });
+  assert.match(lyria.model_guidance.compatibility_warnings[0], /exceeds the 180 s maximum/);
 });
 
 test('guidance output re-imports cleanly and retired model values still load', () => {
