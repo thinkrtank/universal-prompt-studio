@@ -28,29 +28,32 @@ _(Line numbers are approximate — grep for the `const NAME =` / `function NAME(
 
 | Lines (approx) | Section |
 |---|---|
-| 35–52 | `MEDIUM_AESTHETICS` — 10 artistic mediums × 15 aesthetic keywords each |
-| 54–343 | `MODEL_PROFILES` + helpers (`localDiffusionNative`, `midjourneyNative`, `seedanceNative`, `modelGuidance`, `profileOptions/Labels`) — per-model notes, limits and native syntax for image/video/llm/audio |
-| 345–447 | `IMAGE_SCHEMA` — target model, output, multi-reference/edit, `model_params.*` (Midjourney flags) and `sd_local.*` sections |
-| 449–494 | `VIDEO_SCHEMA` — extends IMAGE_SCHEMA with target model, motion, shots/references, edit, audio, transitions (strips image-only keys) |
-| 496–528 | `INDUSTRY_SKILLS` — 25+ domains with top-10 skill arrays |
-| 530–611 | `LLM_SCHEMA` — target model, role, task, context, output, behavior, safety fields |
-| 613–712 | `DEV_SCHEMA` — project vision through devops/security/docs |
-| 714–843 | `MARKETING_SCHEMA` — campaign strategy through market research |
-| 845–901 | `VIBE_SCHEMA` — vibe coder project builder (14 tech stack decisions from The Vibe Coder's Handbook) |
-| 903–956 | `AUDIO_SCHEMA` — music/voice/SFX prompts; `meta.target_tool` uses the audio profiles |
-| 958–998 | `AGENT_SCHEMA` — tool-use & multi-agent prompts (Agent SDK, MCP, subagents) |
-| 1000–1087 | `FRONTEND_SCHEMA` — frontend/website design prompts (visual style, layout, typography, motion, tech stack) |
-| 1089–1177 | `PM_SCHEMA` — PMBOK 8 project management prompts (Seven Questions, EVM-lite, risk registers) |
-| 1179–1236 | `LOOP_SCHEMA` — agent loop / "Ralph" loop-engineering prompts (stop conditions, verification gates, budgets) |
-| 1238–1315 | `MOTION_TOOLS`, `MOTION_SCHEMA` — tool-agnostic motion design brief (AI video model picker reuses the video profiles) |
-| 1316–1389 | `AE_SCHEMA` — After Effects build prompts (expressions, ExtendScript, rigging, 3D, MOGRT, render) |
-| 1391–1606 | `SCHEMAS`, `SELECT_SENTINELS`, `SENTINEL_*`, `TYPE_META`, `SECTION_INFO` — registry and UI metadata |
-| 1608–2625 | `PRESETS` — one-click presets per prompt type |
-| ~2627–2754 | Shared core API (`validateFormData`, `buildPromptObject`, `promptPlainText`, …) exported as `PromptStudioCore` |
-| ~2755–2885 | Toast notification system + hooks + utilities + `CHAIN_TARGETS` |
-| ~2886–3181 | `ChainBuilder` — multi-step pipeline component |
-| 3182–4154 | `UniversalPromptStudio` — main component (forms, output, templates, field search, confirm modal) |
-| ~4155–4168 | `App` wrapper + ReactDOM render |
+| 1–186 | `<head>`: CDN scripts, fonts, early theme script, Tailwind config, design tokens and component CSS, skeleton loader |
+| 187–205 | `MEDIUM_AESTHETICS`: 10 artistic mediums × 15 aesthetic keywords each |
+| 206–495 | `MODEL_PROFILES` + helpers (`localDiffusionNative`, `midjourneyNative`, `seedanceNative`, `modelGuidance`, `profileOptions/Labels`): per-model notes, limits and native syntax for image/video/llm/audio |
+| 497–599 | `IMAGE_SCHEMA`: target model, output, multi-reference/edit, `model_params.*` (Midjourney flags) and `sd_local.*` sections |
+| 601–646 | `VIDEO_SCHEMA`: extends IMAGE_SCHEMA with target model, motion, shots/references, edit, audio, transitions (strips image-only keys) |
+| 648–680 | `INDUSTRY_SKILLS`: 25+ domains with top-10 skill arrays |
+| 682–763 | `LLM_SCHEMA`: target model, role, task, context, output, behavior, safety fields |
+| 765–864 | `DEV_SCHEMA`: project vision through devops/security/docs |
+| 866–995 | `MARKETING_SCHEMA`: campaign strategy through market research |
+| 997–1053 | `VIBE_SCHEMA`: vibe coder project builder (stack decisions from The Vibe Coder's Handbook) |
+| 1055–1108 | `AUDIO_SCHEMA`: music/voice/SFX prompts; `meta.target_tool` uses the audio profiles |
+| 1110–1150 | `AGENT_SCHEMA`: tool-use and multi-agent prompts (Agent SDK, MCP, subagents) |
+| 1152–1239 | `FRONTEND_SCHEMA`: frontend/website design prompts |
+| 1241–1329 | `PM_SCHEMA`: PMBOK 8 project management prompts |
+| 1331–1389 | `LOOP_SCHEMA`: agent loop / "Ralph" loop-engineering prompts |
+| 1391–1467 | `MOTION_TOOLS`, `MOTION_SCHEMA`: tool-agnostic motion design brief (AI video model picker reuses the video profiles) |
+| 1469–1543 | `AE_SCHEMA`: After Effects build prompts (expressions, ExtendScript, rigging, 3D, MOGRT, render) |
+| 1545–1625 | `ANDROID_SCHEMA`: Android app, idea to Google Play (Kotlin + Compose first, cross-platform optional) |
+| 1627–1701 | `IOS_SCHEMA`: iOS app, idea to App Store (Swift + SwiftUI first, cross-platform optional) |
+| 1703–1954 | `SCHEMAS`, `SELECT_SENTINELS`, `SENTINEL_*`, `TYPE_META`, `SECTION_INFO`: registry and UI metadata |
+| 1956–3057 | `PRESETS`: one-click presets per prompt type |
+| ~3059–3190 | Shared core API (`validateFormData`, `buildPromptObject`, `promptPlainText`, …) exported as `PromptStudioCore` |
+| ~3190–3344 | Toasts, hooks, `ThemeToggle`, `BUILDER_GROUPS` / `BUILDER_SYMBOLS`, `CodeView`, `INDUSTRY_GROUPS`, `CHAIN_TARGETS` |
+| ~3345–3592 | `ChainBuilder`: multi-step pipeline component |
+| 3594–4448 | `UniversalPromptStudio`: main component (home tiles, builder, output, templates, field search, confirm modal) |
+| ~4449–4462 | `App` wrapper + ReactDOM render |
 
 ## Key Patterns
 

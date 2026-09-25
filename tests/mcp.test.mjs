@@ -14,7 +14,7 @@ async function exercise(client) {
   const listed = await client.listTools();
   assert.deepEqual(listed.tools.map(t => t.name).sort(), ['build_chain', 'generate_prompt', 'get_builder', 'list_builders', 'list_presets']);
   const builders = await client.callTool({ name: 'list_builders', arguments: {} });
-  assert.equal(JSON.parse(builders.content[0].text).length, 13);
+  assert.equal(JSON.parse(builders.content[0].text).length, 15);
   const schema = await client.callTool({ name: 'get_builder', arguments: { type: 'image' } });
   const builder = JSON.parse(schema.content[0].text);
   assert.ok(builder.fields['text.enabled']);

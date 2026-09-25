@@ -1,6 +1,6 @@
 # Universal Prompt Studio
 
-A browser-based prompt engineering studio. Fourteen guided builders turn plain-English ideas into structured, model-ready prompts for image and video generation, motion design, After Effects, audio, LLM chats, agents and agent loops, software, frontend design, marketing and project management. Pick a target model and the output also carries that model's prompting tips, limit warnings and native syntax.
+A browser-based prompt engineering studio. Sixteen guided builders turn plain-English ideas into structured, model-ready prompts for image and video generation, motion design, After Effects, audio, LLM chats, agents and agent loops, software, frontend design, Android and iOS apps, marketing and project management. Pick a target model and the output also carries that model's prompting tips, limit warnings and native syntax.
 
 **No installation or build step for the browser app. Open the HTML file with an internet connection.**
 
@@ -9,7 +9,7 @@ Optional [MCP agent access](mcp/README.md) supports agents on your PC or Raspber
 ![HTML5](https://img.shields.io/badge/HTML5-Single_File-orange) ![React](https://img.shields.io/badge/React-18-blue) ![Tailwind](https://img.shields.io/badge/Tailwind_CSS-3-38bdf8) ![License](https://img.shields.io/badge/License-MIT-green)
 
 <p align="center">
-  <a href="screenshots/home.png"><img src="screenshots/home.png" width="760" alt="Universal Prompt Studio home screen: a periodic table of fourteen builders grouped into color-coded families"></a>
+  <a href="screenshots/home.png"><img src="screenshots/home.png" width="760" alt="Universal Prompt Studio home screen: a periodic table of sixteen builders grouped into color-coded families"></a>
 </p>
 
 ## Quick Start
@@ -27,6 +27,7 @@ Everything runs client-side in your browser. There is no server, no account and 
 | [<img src="screenshots/home-dark.png" alt="Home screen in dark mode">](screenshots/home-dark.png) *Home in dark mode: builder families keep their deep hues* | [<img src="screenshots/image-builder.png" alt="Image Prompt Builder with Midjourney V8.2 selected">](screenshots/image-builder.png) *Image builder: target model, model notes and live output* |
 | [<img src="screenshots/video-builder.png" alt="Video Prompt Builder showing a Veo 3.1 duration warning">](screenshots/video-builder.png) *Video builder: model guidance flags a 10 s clip on Veo 3.1* | [<img src="screenshots/json-output.png" alt="Generated prompt dialog">](screenshots/json-output.png) *Generated prompt: JSON or plain text, copy, download or save* |
 | [<img src="screenshots/motion-builder.png" alt="Motion Design Prompt Builder, Timing and Easing section">](screenshots/motion-builder.png) *Motion Design builder: timing, easing and the 12 principles* | [<img src="screenshots/aftereffects-builder.png" alt="After Effects Prompt Builder, Expressions section">](screenshots/aftereffects-builder.png) *After Effects builder: expression patterns for an auto-sizing MOGRT* |
+| [<img src="screenshots/android-builder.png" alt="Android App Prompt Builder, Stack and Versions section">](screenshots/android-builder.png) *Android builder: Compose-first stack with verified SDK levels* | [<img src="screenshots/ios-builder.png" alt="iOS App Prompt Builder, App Store Launch section">](screenshots/ios-builder.png) *iOS builder: App Store launch checklist and product page* |
 | [<img src="screenshots/llm-builder-dark.png" alt="LLM Prompt Builder in dark mode">](screenshots/llm-builder-dark.png) *LLM builder in dark mode with Claude Opus 5.5 notes* | [<img src="screenshots/frontend-builder.png" alt="Frontend Design Prompt Builder">](screenshots/frontend-builder.png) *Frontend Design builder: brand and content* |
 | [<img src="screenshots/pm-builder.png" alt="Project Management Prompt Builder">](screenshots/pm-builder.png) *Project Management builder: PMBOK 8 Seven Questions* | [<img src="screenshots/loop-builder.png" alt="Agent Loop Prompt Builder">](screenshots/loop-builder.png) *Agent Loop builder: stop conditions and verification gates* |
 | [<img src="screenshots/chain-builder.png" alt="Chain Builder">](screenshots/chain-builder.png) *Chain Builder: multi-step pipelines* | |
@@ -56,6 +57,8 @@ The home screen is laid out like a periodic table. Each builder is an element ti
 - **Dev Prompt Builder.** Full-stack specs for web, mobile, desktop and APIs: vision, foundation, tech stack, architecture, frontend, backend, database, auth, API design, testing, DevOps, security, performance, documentation and project management.
 - **Vibe Coder Prompt Builder.** Build web apps with AI coding tools, guided by The Vibe Coder's Handbook: 14 tech-stack decisions (runtime, framework, styling, database, auth, deploy) with inline guidance for each choice, targeting Cursor, Claude Code, Codex, Kiro, Bolt, Lovable, Replit and others.
 - **Frontend Design Prompt Builder.** For v0, Lovable, Bolt, Claude Code, Cursor, Figma Make and Framer AI. Covers visual design language (30 aesthetic directions, color systems, typography), layout, components, imagery, motion and interaction, frontend tech stack, responsive and accessibility targets, performance budgets and design references.
+- **Android App Prompt Builder.** From idea to Google Play launch. Native Kotlin + Jetpack Compose first, with Kotlin Multiplatform, Flutter and React Native / Expo as alternatives. Covers your experience level (so the AI knows how much to explain), min and target SDK (API 36 is the Play minimum, API 37 is Android 17), phones, foldables, Wear OS, TV, Auto and XR, architecture (UDF, Hilt or Metro, Navigation 3), Material 3 and Expressive, edge-to-edge and predictive back, Room and DataStore, Credential Manager passkeys, device features, on-device Gemini Nano and Firebase AI Logic, testing and Baseline Profiles, Play Billing, and the launch path: developer verification, the 12-tester closed test for new personal accounts, AAB and Play App Signing, Data safety, content rating and store listing assets.
+- **iOS App Prompt Builder.** From idea to App Store launch. Native Swift + SwiftUI first, with UIKit, Kotlin Multiplatform, Flutter, React Native / Expo and Skip as alternatives. Covers your experience level and Mac, minimum iOS (26 for Liquid Glass, 27 for the newest Foundation Models features), Swift 6 concurrency, iPhone, the foldable iPhone Duo, iPad windowing, Mac, Watch and Vision Pro, widgets, Live Activities and App Intents, @Observable, SwiftData and CloudKit, Sign in with Apple and passkeys, Foundation Models and Private Cloud Compute, Swift Testing, StoreKit 2 and the Small Business Program, and the launch path: privacy manifest and required-reason APIs, App Privacy and Accessibility Nutrition labels, the 4+ to 18+ age ratings, TestFlight, review-guideline pitfalls and product page assets.
 
 ### Business (bronze)
 
@@ -73,7 +76,7 @@ The home screen is laid out like a periodic table. Each builder is an element ti
 | Model-aware output | Pick a target model or tool and the output gains a `model_guidance` block: prompting tips, API model id, compatibility warnings and native syntax |
 | Live output | JSON or plain-text preview beside the form on wide screens, updated as you type |
 | Schema-driven forms | All forms are generated from schema definitions; the section list shows how many fields you changed in each section |
-| Presets | 74 one-click presets across the builders (Midjourney V8.2 Editorial, Veo 3.1 Dialogue Scene, Logo Reveal, Auto-sizing Lower Third, and more) |
+| Presets | 80 one-click presets across the builders (Midjourney V8.2 Editorial, Veo 3.1 Dialogue Scene, Logo Reveal, Offline Habit Tracker, Private Journal with On-Device AI, and more) |
 | Templates | Save, open and delete your own templates in the browser; export or import the whole library as a file |
 | Import / export | Paste a previously exported prompt (nested or flat JSON) to repopulate a builder |
 | Field search | Search fields by name across every section of a builder |

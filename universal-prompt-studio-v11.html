@@ -1540,7 +1540,167 @@
       'output.verify_steps': { type: 'checkbox', label: 'Include how to verify it works (RAM preview checks)', section: 'output' },
     };
 
-    const SCHEMAS = { image: IMAGE_SCHEMA, video: VIDEO_SCHEMA, motion: MOTION_SCHEMA, aftereffects: AE_SCHEMA, llm: LLM_SCHEMA, dev: DEV_SCHEMA, marketing: MARKETING_SCHEMA, vibe: VIBE_SCHEMA, frontend: FRONTEND_SCHEMA, pm: PM_SCHEMA, loop: LOOP_SCHEMA, audio: AUDIO_SCHEMA, agent: AGENT_SCHEMA };
+    // Android app builder: native Kotlin + Jetpack Compose first, cross-platform optional, idea to Google Play launch.
+    // Platform facts verified against developer.android.com / Play Console help on 2026-09-25.
+    const ANDROID_SCHEMA = {
+      user_intent: { type: 'textarea', label: 'What Android app do you want to build?', placeholder: 'Describe the app in plain English: what it does, who it is for, and what makes it worth installing.', section: 'intent' },
+      // Vision
+      'vision.app_name': { type: 'text', label: 'App Name', placeholder: 'Working title; Play titles are limited to 30 characters', section: 'vision' },
+      'vision.category': { type: 'select', label: 'Play Store Category', options: ['productivity', 'tools', 'health_and_fitness', 'finance', 'education', 'lifestyle', 'social', 'communication', 'photography', 'music_and_audio', 'entertainment', 'shopping', 'food_and_drink', 'travel_and_local', 'maps_and_navigation', 'business', 'news_and_magazines', 'books_and_reference', 'medical', 'sports', 'weather', 'game'], section: 'vision' },
+      'vision.target_users': { type: 'textarea', label: 'Target Users', placeholder: 'Who installs this, on what devices, and why they keep it', section: 'vision' },
+      'vision.core_features': { type: 'textarea', label: 'Core Features (MVP)', placeholder: '- Sign in with a passkey\n- Log a workout in under 10 seconds\n- Weekly progress chart\n- Reminder notifications', section: 'vision' },
+      'vision.differentiator': { type: 'text', label: 'Why It Wins', placeholder: 'e.g., works fully offline, no account needed, faster than X', section: 'vision' },
+      'vision.scale': { type: 'select', label: 'Project Scale', options: ['personal_or_learning', 'indie_launch', 'startup_mvp', 'client_project', 'enterprise'], default: 'indie_launch', section: 'vision' },
+      // Developer & guidance
+      'dev.experience': { type: 'select', label: 'Your Android Experience', options: ['new_to_coding', 'new_to_android', 'some_android', 'experienced_android'], default: 'new_to_android', placeholder: 'Tells the AI how much to explain. Beginners get setup steps, reasons and checkpoints; experts get terse code.', section: 'dev' },
+      'dev.explanation_level': { type: 'select', label: 'How Much Should the AI Explain?', options: ['explain_everything', 'explain_decisions_only', 'code_first_minimal_notes'], default: 'explain_decisions_only', section: 'dev' },
+      'dev.dev_machine': { type: 'select', label: 'Development Machine', options: ['', 'windows', 'macos', 'linux', 'chromeos'], section: 'dev' },
+      'dev.test_devices': { type: 'text', label: 'Test Devices', placeholder: 'e.g., Pixel 8 on Android 17, Galaxy Tab S9, emulator only', section: 'dev' },
+      // Stack
+      'stack.approach': { type: 'select', label: 'Stack', options: ['native_kotlin_compose', 'kotlin_multiplatform_compose_multiplatform', 'flutter', 'react_native_expo', 'native_kotlin_views_legacy'], optionLabels: { native_kotlin_compose: 'Native: Kotlin + Jetpack Compose (recommended)', kotlin_multiplatform_compose_multiplatform: 'Kotlin Multiplatform + Compose Multiplatform (Android + iOS)', flutter: 'Flutter 3.47 (Dart)', react_native_expo: 'React Native 0.87 + Expo SDK 57', native_kotlin_views_legacy: 'Native: Kotlin + XML Views (maintenance mode)' }, default: 'native_kotlin_compose', placeholder: 'Compose is the official UI toolkit; Android 17 put Views and Fragments in maintenance mode. Pick cross-platform only if you also need iOS from one codebase.', section: 'stack' },
+      'stack.min_sdk': { type: 'select', label: 'Minimum SDK', options: ['23', '24', '26', '28', '29', '31'], optionLabels: { '23': 'API 23 (Android 6, AndroidX floor, ~99% of devices)', '24': 'API 24 (Android 7, sensible default)', '26': 'API 26 (Android 8)', '28': 'API 28 (Android 9)', '29': 'API 29 (Android 10)', '31': 'API 31 (Android 12, Material You dynamic color native)' }, default: '24', section: 'stack' },
+      'stack.target_sdk': { type: 'select', label: 'Target / Compile SDK', options: ['36', '37'], optionLabels: { '36': 'API 36 (Android 16): Google Play minimum since Aug 31, 2026', '37': 'API 37 (Android 17): latest' }, default: '36', placeholder: 'Targeting 36 makes edge-to-edge mandatory and turns on predictive back; 37 also removes the large-screen orientation opt-out.', section: 'stack' },
+      'stack.toolchain_notes': { type: 'text', label: 'Toolchain Pins (optional)', placeholder: 'e.g., Android Studio Quail 4, AGP 9.4, Gradle 9.6, Kotlin 2.4.20, Compose BOM 2026.09.00', section: 'stack' },
+      // Form factors
+      'form.targets': { type: 'multiselect', label: 'Devices to Support', options: ['phone', 'tablet_and_foldable', 'chromeos_desktop', 'wear_os', 'google_tv', 'android_auto', 'automotive_os', 'android_xr_preview'], section: 'form' },
+      'form.adaptive_layout': { type: 'select', label: 'Large-Screen Strategy', options: ['', 'adaptive_list_detail_and_nav_suite', 'responsive_single_pane', 'phone_first_letterbox_ok'], placeholder: 'Apps targeting API 36+ cannot lock orientation or aspect ratio on tablets and foldables; plan adaptive layouts early.', section: 'form' },
+      'form.orientation': { type: 'select', label: 'Orientation', options: ['', 'both', 'portrait_on_phones', 'landscape_first'], section: 'form' },
+      'form.widgets': { type: 'checkbox', label: 'Home-screen widget (Jetpack Glance)', section: 'form' },
+      // Architecture
+      'arch.pattern': { type: 'select', label: 'Architecture', options: ['official_layers_udf_mvvm', 'mvi', 'clean_architecture_with_domain_layer', 'simple_single_module'], optionLabels: { official_layers_udf_mvvm: 'Official guide: UI + data layers, ViewModel + StateFlow UiState (recommended)', mvi: 'MVI (intents, reducer, single state)', clean_architecture_with_domain_layer: 'Clean architecture with domain / use-case layer', simple_single_module: 'Keep it simple: one module, minimal layers' }, default: 'official_layers_udf_mvvm', section: 'arch' },
+      'arch.modules': { type: 'select', label: 'Modularization', options: ['single_module', 'feature_modules', 'feature_and_core_modules_like_now_in_android'], default: 'single_module', placeholder: 'Now in Android is Google\'s reference for feature + core modules.', section: 'arch' },
+      'arch.di': { type: 'select', label: 'Dependency Injection', options: ['hilt', 'metro', 'koin', 'manual_di'], default: 'hilt', placeholder: 'Hilt is the official choice. Metro and Koin also work in Kotlin Multiplatform. Manual DI is fine for small apps.', section: 'arch' },
+      'arch.navigation': { type: 'select', label: 'Navigation', options: ['navigation_3', 'navigation_compose_2', 'custom'], optionLabels: { navigation_3: 'Navigation 3 (stable, Compose-first)', navigation_compose_2: 'Navigation Compose 2.x (existing projects)', custom: 'Custom / library-specific' }, default: 'navigation_3', section: 'arch' },
+      'arch.async': { type: 'select', label: 'Concurrency', options: ['coroutines_and_flow', 'rxjava_legacy'], default: 'coroutines_and_flow', section: 'arch' },
+      // UI & design
+      'ui.design_system': { type: 'select', label: 'Design System', options: ['material_3', 'material_3_expressive', 'custom_brand_on_material', 'fully_custom'], optionLabels: { material_3: 'Material 3 (1.4 stable)', material_3_expressive: 'Material 3 Expressive (1.5 alpha components)', custom_brand_on_material: 'Brand theme on Material 3', fully_custom: 'Fully custom design system' }, default: 'material_3', section: 'ui' },
+      'ui.dynamic_color': { type: 'checkbox', label: 'Use dynamic color (Material You) with a brand fallback', default: true, section: 'ui' },
+      'ui.dark_theme': { type: 'checkbox', label: 'Support dark theme', default: true, section: 'ui' },
+      'ui.brand': { type: 'textarea', label: 'Brand & Visual Direction', placeholder: 'Colors (hex), typography, icon style, tone, reference apps', section: 'ui' },
+      'ui.screens': { type: 'textarea', label: 'Key Screens & Flows', placeholder: 'Onboarding (3 steps) > Home feed > Detail > Create > Settings', section: 'ui' },
+      'ui.system_behaviors': { type: 'multiselect', label: 'System UI Requirements', options: ['edge_to_edge_insets', 'predictive_back', 'per_app_language', 'splash_screen_api', 'themed_app_icon', 'haptics'], section: 'ui' },
+      'ui.accessibility': { type: 'multiselect', label: 'Accessibility', options: ['talkback_labels', 'font_scaling_200_percent', 'contrast_aa', 'touch_targets_48dp', 'reduced_motion', 'switch_access'], section: 'ui' },
+      'ui.localization': { type: 'text', label: 'Languages', placeholder: 'e.g., English, Spanish, Arabic (RTL)', section: 'ui' },
+      // Data & backend
+      'data.local_storage': { type: 'multiselect', label: 'On-Device Storage', options: ['room', 'datastore_preferences', 'datastore_proto', 'sqldelight_kmp', 'files_only'], section: 'data' },
+      'data.backend': { type: 'select', label: 'Backend', options: ['none_local_only', 'firebase', 'supabase', 'custom_rest_api', 'graphql_api', 'existing_api'], default: 'none_local_only', section: 'data' },
+      'data.networking': { type: 'select', label: 'Networking', options: ['', 'retrofit_okhttp', 'ktor_client'], placeholder: 'Ktor is the natural choice for Kotlin Multiplatform.', section: 'data' },
+      'data.serialization': { type: 'select', label: 'Serialization', options: ['', 'kotlinx_serialization', 'moshi'], section: 'data' },
+      'data.offline': { type: 'select', label: 'Offline Behavior', options: ['', 'offline_first_sync_later', 'cache_for_reading', 'online_only'], section: 'data' },
+      'data.images': { type: 'select', label: 'Image Loading', options: ['', 'coil_3', 'glide'], section: 'data' },
+      // Accounts
+      'auth.method': { type: 'multiselect', label: 'Sign-In', options: ['no_account', 'passkeys_credential_manager', 'sign_in_with_google_credential_manager', 'email_password', 'firebase_auth', 'supabase_auth', 'custom_backend_auth'], placeholder: 'Credential Manager is the one API for passkeys, passwords and Sign in with Google; the old Google Sign-In and One Tap APIs are deprecated.', section: 'auth' },
+      'auth.biometric': { type: 'checkbox', label: 'Biometric unlock for sensitive screens', section: 'auth' },
+      // Device features
+      'device.capabilities': { type: 'multiselect', label: 'Device Capabilities', options: ['camera_camerax', 'photo_picker', 'location', 'push_notifications_fcm', 'background_work_workmanager', 'foreground_service', 'bluetooth', 'nfc', 'health_connect', 'media_playback_media3', 'maps', 'contacts_picker', 'sensors', 'local_network_access'], section: 'device' },
+      'device.permissions_strategy': { type: 'select', label: 'Permissions Approach', options: ['', 'ask_in_context_with_rationale', 'minimize_use_pickers_instead', 'onboarding_upfront'], optionLabels: { ask_in_context_with_rationale: 'Ask in context, with a rationale', minimize_use_pickers_instead: 'Avoid permissions; use system pickers', onboarding_upfront: 'Ask during onboarding' }, placeholder: 'Prefer system pickers (photo, contact) that need no permission at all.', section: 'device' },
+      // In-app AI
+      'ai.features': { type: 'multiselect', label: 'In-App AI', options: ['none', 'gemini_nano_ml_kit_genai_on_device', 'firebase_ai_logic_cloud_gemini', 'hybrid_on_device_cloud_experimental', 'litert_custom_model', 'appfunctions_for_system_agents_alpha'], section: 'ai' },
+      'ai.use_cases': { type: 'text', label: 'AI Use Cases', placeholder: 'e.g., summarize notes on-device, smart reply, image captioning', section: 'ai' },
+      // Quality
+      'quality.testing': { type: 'multiselect', label: 'Testing', options: ['unit_tests_with_fakes', 'compose_ui_tests', 'robolectric', 'espresso', 'screenshot_tests_roborazzi', 'screenshot_tests_paparazzi', 'compose_preview_screenshot_testing_alpha', 'journeys_ai_ui_tests', 'macrobenchmark'], section: 'quality' },
+      'quality.performance': { type: 'multiselect', label: 'Performance', options: ['baseline_profiles', 'r8_full_mode', 'startup_under_1s', 'lazy_list_stability', 'strict_mode_in_debug'], section: 'quality' },
+      'quality.observability': { type: 'multiselect', label: 'Crash Reporting & Analytics', options: ['firebase_crashlytics', 'sentry', 'firebase_analytics', 'posthog', 'play_vitals_only'], section: 'quality' },
+      'quality.security': { type: 'multiselect', label: 'Security', options: ['play_integrity_api', 'encrypted_storage', 'network_security_config', 'certificate_pinning', 'no_secrets_in_apk'], section: 'quality' },
+      // Monetization
+      'money.model': { type: 'select', label: 'Business Model', options: ['free', 'paid_upfront', 'freemium_subscription', 'one_time_unlock', 'ads', 'ads_plus_remove_ads_purchase', 'external_payments_for_physical_goods'], default: 'free', section: 'money' },
+      'money.billing': { type: 'select', label: 'Billing', options: ['', 'play_billing_library_9', 'revenuecat', 'stripe_for_physical_goods'], placeholder: 'Digital goods must use Google Play Billing; Billing Library 8+ is required since Aug 31, 2026 (9.1 is current).', section: 'money' },
+      'money.ads': { type: 'select', label: 'Ads', options: ['', 'admob', 'meta_audience_network', 'none'], section: 'money' },
+      // Google Play launch
+      'launch.account_type': { type: 'select', label: 'Play Developer Account', options: ['', 'personal_new', 'personal_existing', 'organization'], placeholder: 'New personal accounts must run a closed test with at least 12 testers opted in for 14 days before production.', section: 'launch' },
+      'launch.release_tracks': { type: 'multiselect', label: 'Release Tracks', options: ['internal_testing', 'closed_testing', 'open_testing', 'production_staged_rollout'], section: 'launch' },
+      'launch.checklist': { type: 'multiselect', label: 'Launch Requirements to Cover', options: ['developer_verification', 'signed_aab_play_app_signing', 'data_safety_form', 'content_rating_iarc', 'target_audience_and_families', 'privacy_policy_url', 'permissions_declarations', '16kb_page_size_support', 'account_deletion_flow', 'in_app_review', 'in_app_updates'], optionLabels: { developer_verification: 'Android developer verification', signed_aab_play_app_signing: 'Signed AAB + Play App Signing', data_safety_form: 'Data safety form', content_rating_iarc: 'Content rating (IARC)', target_audience_and_families: 'Target audience + Families policy', privacy_policy_url: 'Privacy policy URL', permissions_declarations: 'Sensitive permission declarations', '16kb_page_size_support': '16 KB page size support', account_deletion_flow: 'In-app account deletion', in_app_review: 'In-app review prompt', in_app_updates: 'In-app updates' }, section: 'launch' },
+      'launch.listing': { type: 'multiselect', label: 'Store Listing Assets', options: ['app_icon_512', 'feature_graphic_1024x500', 'phone_screenshots', 'tablet_screenshots', 'short_description_80', 'full_description', 'promo_video', 'aso_keywords'], optionLabels: { app_icon_512: 'App icon (512×512)', feature_graphic_1024x500: 'Feature graphic (1024×500)', phone_screenshots: 'Phone screenshots', tablet_screenshots: 'Tablet screenshots', short_description_80: 'Short description (80 chars)', full_description: 'Full description', promo_video: 'Promo video (YouTube)', aso_keywords: 'ASO keyword research' }, section: 'launch' },
+      'launch.regions': { type: 'text', label: 'Countries / Launch Date', placeholder: 'e.g., US, UK, CA first; launch Nov 15', section: 'launch' },
+      // Output
+      'output.target_tool': { type: 'select', label: 'Target AI Tool', options: ['any_ai_tool', 'android_studio_agent', 'Claude Code', 'Cursor', 'Codex', 'GitHub Copilot', 'Antigravity', 'Kiro', 'ChatGPT'], optionLabels: { android_studio_agent: 'Android Studio AI agent (Gemini, BYO key, Gemma 4 local)' }, default: 'any_ai_tool', section: 'output' },
+      'output.deliverable': { type: 'select', label: 'What Should the AI Produce?', options: ['full_build_plan_then_code', 'phased_build_milestones', 'project_scaffold_only', 'single_feature', 'launch_checklist_only', 'architecture_review'], default: 'phased_build_milestones', section: 'output' },
+      'output.include_setup_steps': { type: 'checkbox', label: 'Include environment setup (Android Studio, SDK, emulator, device)', default: true, section: 'output' },
+      'output.include_file_structure': { type: 'checkbox', label: 'Include module and package structure', default: true, section: 'output' },
+      'output.include_gradle': { type: 'checkbox', label: 'Include Gradle version catalog (libs.versions.toml)', default: true, section: 'output' },
+      'output.include_launch_plan': { type: 'checkbox', label: 'Include Google Play launch plan and checklist', default: true, section: 'output' },
+      'output.additional_instructions': { type: 'textarea', label: 'Additional Instructions', placeholder: 'Existing code, APIs to integrate, things to avoid, deadline...', section: 'output' },
+    };
+
+    // iOS app builder: native Swift + SwiftUI first, cross-platform optional, idea to App Store launch.
+    // Platform facts verified against developer.apple.com / swift.org / App Store Connect help on 2026-09-25.
+    const IOS_SCHEMA = {
+      user_intent: { type: 'textarea', label: 'What iOS app do you want to build?', placeholder: 'Describe the app in plain English: what it does, who it is for, and what makes it worth installing.', section: 'intent' },
+      // Vision
+      'vision.app_name': { type: 'text', label: 'App Name', placeholder: 'Working title; App Store names are limited to 30 characters', section: 'vision' },
+      'vision.category': { type: 'select', label: 'App Store Category', options: ['productivity', 'utilities', 'health_and_fitness', 'finance', 'education', 'lifestyle', 'social_networking', 'photo_and_video', 'music', 'entertainment', 'shopping', 'food_and_drink', 'travel', 'navigation', 'business', 'news', 'books', 'reference', 'medical', 'sports', 'weather', 'developer_tools', 'games'], section: 'vision' },
+      'vision.target_users': { type: 'textarea', label: 'Target Users', placeholder: 'Who downloads this, on which devices, and why they keep it', section: 'vision' },
+      'vision.core_features': { type: 'textarea', label: 'Core Features (MVP)', placeholder: '- Sign in with Apple or a passkey\n- Log a workout in under 10 seconds\n- Weekly progress chart and widget\n- Reminder notifications', section: 'vision' },
+      'vision.differentiator': { type: 'text', label: 'Why It Wins', placeholder: 'e.g., private by design, works offline, feels native to iOS', section: 'vision' },
+      'vision.scale': { type: 'select', label: 'Project Scale', options: ['personal_or_learning', 'indie_launch', 'startup_mvp', 'client_project', 'enterprise'], default: 'indie_launch', section: 'vision' },
+      // Developer & guidance
+      'dev.experience': { type: 'select', label: 'Your iOS Experience', options: ['new_to_coding', 'new_to_ios', 'some_ios', 'experienced_ios'], default: 'new_to_ios', placeholder: 'Tells the AI how much to explain. Beginners get setup steps, reasons and checkpoints; experts get terse code.', section: 'dev' },
+      'dev.explanation_level': { type: 'select', label: 'How Much Should the AI Explain?', options: ['explain_everything', 'explain_decisions_only', 'code_first_minimal_notes'], default: 'explain_decisions_only', section: 'dev' },
+      'dev.mac': { type: 'select', label: 'Development Mac', options: ['', 'apple_silicon_mac', 'intel_mac', 'no_mac_yet'], placeholder: 'Xcode 27 and macOS 27 require Apple silicon. Without a Mac, plan for a cloud Mac or a cross-platform stack with cloud builds.', section: 'dev' },
+      'dev.test_devices': { type: 'text', label: 'Test Devices', placeholder: 'e.g., iPhone 16 Pro on iOS 27, iPad Air, Simulator only', section: 'dev' },
+      // Stack
+      'stack.approach': { type: 'select', label: 'Stack', options: ['native_swift_swiftui', 'swiftui_with_uikit_interop', 'native_swift_uikit', 'kotlin_multiplatform_compose_multiplatform', 'flutter', 'react_native_expo', 'skip_swift_to_android'], optionLabels: { native_swift_swiftui: 'Native: Swift + SwiftUI (recommended)', swiftui_with_uikit_interop: 'SwiftUI with UIKit where needed', native_swift_uikit: 'Native: Swift + UIKit', kotlin_multiplatform_compose_multiplatform: 'Kotlin Multiplatform + Compose Multiplatform (iOS + Android)', flutter: 'Flutter 3.47 (Dart)', react_native_expo: 'React Native 0.87 + Expo SDK 57', skip_swift_to_android: 'Skip: one SwiftUI codebase, also ships to Android' }, default: 'native_swift_swiftui', placeholder: 'SwiftUI is Apple\'s primary UI framework. Pick cross-platform only if you also need Android from one codebase.', section: 'stack' },
+      'stack.min_ios': { type: 'select', label: 'Minimum iOS Version', options: ['27', '26', '18', '17', '16', '15'], optionLabels: { '27': 'iOS 27 (latest; newest Foundation Models features)', '26': 'iOS 26 (Liquid Glass baseline, recommended)', '18': 'iOS 18', '17': 'iOS 17 (floor for @Observable and SwiftData)', '16': 'iOS 16', '15': 'iOS 15 (widest reach, older APIs)' }, default: '26', placeholder: 'Uploads must be built with Xcode 26+ and the iOS 26 SDK today, and with the iOS 27 SDK from April 2027.', section: 'stack' },
+      'stack.swift_concurrency': { type: 'select', label: 'Swift Concurrency', options: ['swift_6_strict_concurrency', 'swift_6_approachable_main_actor_default', 'swift_5_mode_migrating'], default: 'swift_6_strict_concurrency', section: 'stack' },
+      'stack.toolchain_notes': { type: 'text', label: 'Toolchain Pins (optional)', placeholder: 'e.g., Xcode 27, Swift 6.4, iOS 27 SDK', section: 'stack' },
+      // Platforms
+      'form.targets': { type: 'multiselect', label: 'Devices to Support', options: ['iphone', 'iphone_duo_foldable', 'ipad', 'mac_designed_for_ipad', 'mac_catalyst', 'apple_watch', 'apple_tv', 'vision_pro', 'carplay'], section: 'form' },
+      'form.adaptive_layout': { type: 'select', label: 'Adaptive Layout Strategy', options: ['', 'size_classes_split_view_everywhere', 'phone_first_scale_up', 'ipad_first_productivity'], placeholder: 'iPadOS windows are freely resizable and UIRequiresFullScreen is deprecated; the foldable iPhone Duo adds fold and pose changes.', section: 'form' },
+      'form.extensions': { type: 'multiselect', label: 'System Surfaces', options: ['widgets_widgetkit', 'live_activities_dynamic_island', 'control_center_controls', 'app_intents_siri_shortcuts', 'spotlight_indexing', 'share_extension', 'app_clip', 'notification_content_extension', 'now_playing'], section: 'form' },
+      // Architecture
+      'arch.pattern': { type: 'select', label: 'Architecture', options: ['swiftui_observable_mv', 'mvvm_observable', 'the_composable_architecture', 'clean_architecture_with_use_cases', 'simple_single_target'], optionLabels: { swiftui_observable_mv: 'SwiftUI + @Observable models (recommended)', mvvm_observable: 'MVVM with @Observable view models', the_composable_architecture: 'The Composable Architecture (TCA)', clean_architecture_with_use_cases: 'Clean architecture with use cases', simple_single_target: 'Keep it simple: one target, minimal layers' }, default: 'swiftui_observable_mv', section: 'arch' },
+      'arch.modules': { type: 'select', label: 'Code Organization', options: ['single_app_target', 'local_swift_packages_per_feature', 'workspace_with_frameworks'], default: 'single_app_target', section: 'arch' },
+      'arch.navigation': { type: 'select', label: 'Navigation', options: ['navigationstack_with_path', 'navigationsplitview', 'tabview_with_stacks', 'coordinator_pattern'], default: 'navigationstack_with_path', section: 'arch' },
+      'arch.dependencies': { type: 'select', label: 'Dependency Management', options: ['swift_package_manager', 'none_apple_frameworks_only'], default: 'swift_package_manager', section: 'arch' },
+      // UI & design
+      'ui.design_language': { type: 'select', label: 'Design Language', options: ['native_liquid_glass', 'native_with_brand_accents', 'custom_brand_system'], optionLabels: { native_liquid_glass: 'Native iOS 26/27 Liquid Glass (system controls)', native_with_brand_accents: 'Native controls with brand color and type', custom_brand_system: 'Custom brand design system' }, default: 'native_with_brand_accents', placeholder: 'System bars, tab bars and sheets adopt Liquid Glass automatically; custom chrome should respect it rather than fight it.', section: 'ui' },
+      'ui.app_icon': { type: 'select', label: 'App Icon', options: ['', 'layered_icon_composer', 'standard_single_image'], placeholder: 'Icon Composer builds layered Liquid Glass icons with light, dark, tinted and clear variants.', section: 'ui' },
+      'ui.brand': { type: 'textarea', label: 'Brand & Visual Direction', placeholder: 'Accent color (hex), typography, SF Symbols style, tone, reference apps', section: 'ui' },
+      'ui.screens': { type: 'textarea', label: 'Key Screens & Flows', placeholder: 'Onboarding (3 steps) > Home > Detail > Create sheet > Settings', section: 'ui' },
+      'ui.dark_mode': { type: 'checkbox', label: 'Support Dark Mode', default: true, section: 'ui' },
+      'ui.accessibility': { type: 'multiselect', label: 'Accessibility (Accessibility Nutrition Labels)', options: ['voiceover', 'voice_control', 'larger_text_dynamic_type', 'sufficient_contrast', 'dark_interface', 'differentiate_without_color', 'reduced_motion', 'captions', 'audio_descriptions'], placeholder: 'These are the nine features App Store Connect lets you declare; Apple plans to make the labels mandatory.', section: 'ui' },
+      'ui.localization': { type: 'text', label: 'Languages', placeholder: 'e.g., English, Spanish, Japanese; String Catalogs', section: 'ui' },
+      // Data & backend
+      'data.local_storage': { type: 'multiselect', label: 'On-Device Storage', options: ['swiftdata', 'core_data', 'grdb_sqlite', 'userdefaults_appstorage', 'keychain', 'files_documents'], section: 'data' },
+      'data.sync': { type: 'select', label: 'Sync & Backend', options: ['none_local_only', 'icloud_cloudkit', 'firebase', 'supabase', 'custom_rest_api', 'graphql_api', 'existing_api'], default: 'none_local_only', section: 'data' },
+      'data.networking': { type: 'select', label: 'Networking', options: ['', 'urlsession_async_await', 'openapi_generator', 'alamofire'], section: 'data' },
+      'data.offline': { type: 'select', label: 'Offline Behavior', options: ['', 'offline_first_sync_later', 'cache_for_reading', 'online_only'], section: 'data' },
+      // Accounts
+      'auth.method': { type: 'multiselect', label: 'Sign-In', options: ['no_account', 'sign_in_with_apple', 'passkeys', 'email_password', 'google_sign_in', 'firebase_auth', 'supabase_auth', 'custom_backend_auth'], placeholder: 'If you offer third-party login, guideline 4.8 requires an equivalent privacy-focused option such as Sign in with Apple. Account creation requires in-app account deletion.', section: 'auth' },
+      'auth.biometric': { type: 'checkbox', label: 'Face ID / Touch ID for sensitive screens', section: 'auth' },
+      'auth.age_range': { type: 'checkbox', label: 'Use the Declared Age Range API where required', section: 'auth' },
+      // Device features
+      'device.capabilities': { type: 'multiselect', label: 'Device Capabilities', options: ['camera_avfoundation', 'photos_picker', 'location_corelocation', 'push_notifications_apns', 'background_tasks', 'bluetooth_corebluetooth', 'nfc_corenfc', 'healthkit', 'mapkit', 'audio_video_avkit', 'contacts', 'calendar_eventkit', 'motion_coremotion', 'arkit'], section: 'device' },
+      'device.permissions_strategy': { type: 'select', label: 'Permissions Approach', options: ['', 'ask_in_context_with_purpose_strings', 'minimize_use_pickers_instead', 'onboarding_upfront'], placeholder: 'Every permission needs a clear Info.plist purpose string; vague ones are a common rejection.', section: 'device' },
+      // In-app AI
+      'ai.features': { type: 'multiselect', label: 'In-App AI', options: ['none', 'foundation_models_on_device', 'private_cloud_compute_model', 'foundation_models_with_third_party_provider', 'core_ai_custom_models', 'vision_and_natural_language', 'app_intents_for_siri_ai'], section: 'ai' },
+      'ai.use_cases': { type: 'text', label: 'AI Use Cases', placeholder: 'e.g., summarize journal entries on-device, extract data from receipts', section: 'ai' },
+      'ai.disclosure': { type: 'checkbox', label: 'Disclose and ask permission before sending personal data to third-party AI (guideline 5.1.2(i))', default: true, section: 'ai' },
+      // Quality
+      'quality.testing': { type: 'multiselect', label: 'Testing', options: ['swift_testing', 'xctest_unit', 'xcuitest', 'app_intents_testing', 'snapshot_tests', 'swiftui_previews_as_specs'], section: 'quality' },
+      'quality.performance': { type: 'multiselect', label: 'Performance', options: ['instruments_profiling', 'swift_concurrency_instrument', 'launch_time_under_400ms', 'memory_leak_checks', 'energy_efficiency'], section: 'quality' },
+      'quality.observability': { type: 'multiselect', label: 'Crash Reporting & Analytics', options: ['xcode_organizer_metrickit', 'firebase_crashlytics', 'sentry', 'telemetrydeck', 'posthog', 'app_store_analytics_only'], section: 'quality' },
+      // Monetization
+      'money.model': { type: 'select', label: 'Business Model', options: ['free', 'paid_upfront', 'freemium_subscription', 'one_time_unlock', 'ads', 'ads_plus_remove_ads_purchase', 'external_payments_for_physical_goods'], default: 'free', section: 'money' },
+      'money.billing': { type: 'select', label: 'Purchases', options: ['', 'storekit_2', 'revenuecat', 'storekit_plus_us_external_link', 'apple_pay_for_physical_goods'], placeholder: 'Digital unlocks use In-App Purchase (3.1.1). US-storefront apps may also link to external purchases; other regions need specific entitlements.', section: 'money' },
+      'money.small_business': { type: 'checkbox', label: 'Enroll in the App Store Small Business Program (15% commission)', section: 'money' },
+      // App Store launch
+      'launch.checklist': { type: 'multiselect', label: 'Launch Requirements to Cover', options: ['developer_program_enrollment', 'bundle_id_signing_capabilities', 'privacy_manifest_required_reason_apis', 'app_privacy_nutrition_label', 'app_tracking_transparency', 'age_rating_questionnaire', 'privacy_policy_url', 'account_deletion_flow', 'ugc_moderation_tools', 'export_compliance_encryption', 'review_notes_and_demo_account', 'accessibility_nutrition_label'], optionLabels: { developer_program_enrollment: 'Apple Developer Program enrollment', bundle_id_signing_capabilities: 'Bundle ID, signing and capabilities', privacy_manifest_required_reason_apis: 'Privacy manifest + required-reason APIs', app_privacy_nutrition_label: 'App Privacy label', app_tracking_transparency: 'App Tracking Transparency', age_rating_questionnaire: 'Age rating questionnaire (4+ to 18+)', privacy_policy_url: 'Privacy policy URL', account_deletion_flow: 'In-app account deletion', ugc_moderation_tools: 'UGC filter, report and block', export_compliance_encryption: 'Export compliance (encryption)', review_notes_and_demo_account: 'Review notes + demo account', accessibility_nutrition_label: 'Accessibility Nutrition Label' }, section: 'launch' },
+      'launch.testflight': { type: 'select', label: 'TestFlight Plan', options: ['', 'internal_only', 'internal_then_external', 'public_link_beta'], placeholder: 'Up to 100 internal and 10,000 external testers; the first external build goes through Beta App Review.', section: 'launch' },
+      'launch.listing': { type: 'multiselect', label: 'Product Page Assets', options: ['app_icon', 'iphone_6_9_screenshots', 'ipad_13_screenshots', 'iphone_duo_screenshots', 'app_preview_video', 'subtitle_30', 'promotional_text', 'description', 'keywords_100', 'custom_product_pages'], optionLabels: { app_icon: 'App icon', iphone_6_9_screenshots: 'iPhone 6.9" screenshots', ipad_13_screenshots: 'iPad 13" screenshots', iphone_duo_screenshots: 'iPhone Duo screenshots (inner + outer)', app_preview_video: 'App preview video', subtitle_30: 'Subtitle (30 chars)', promotional_text: 'Promotional text', description: 'Description', keywords_100: 'Keywords (100 chars)', custom_product_pages: 'Custom product pages' }, section: 'launch' },
+      'launch.distribution': { type: 'multiselect', label: 'Distribution', options: ['app_store_worldwide', 'eu_alternative_marketplace', 'eu_web_distribution', 'unlisted_app', 'custom_apps_business'], section: 'launch' },
+      'launch.regions': { type: 'text', label: 'Countries / Launch Date', placeholder: 'e.g., US, UK, CA first; launch Nov 15', section: 'launch' },
+      // Output
+      'output.target_tool': { type: 'select', label: 'Target AI Tool', options: ['any_ai_tool', 'xcode_coding_agent', 'Claude Code', 'Cursor', 'Codex', 'GitHub Copilot', 'Antigravity', 'Kiro', 'ChatGPT'], optionLabels: { xcode_coding_agent: 'Xcode 27 coding agent (Anthropic, Google, OpenAI models)' }, default: 'any_ai_tool', placeholder: 'Claude Code, Codex and Cursor can also drive a running Xcode through its MCP support.', section: 'output' },
+      'output.deliverable': { type: 'select', label: 'What Should the AI Produce?', options: ['full_build_plan_then_code', 'phased_build_milestones', 'project_scaffold_only', 'single_feature', 'launch_checklist_only', 'architecture_review'], default: 'phased_build_milestones', section: 'output' },
+      'output.include_setup_steps': { type: 'checkbox', label: 'Include environment setup (Xcode, simulators, signing, device)', default: true, section: 'output' },
+      'output.include_file_structure': { type: 'checkbox', label: 'Include project and folder structure', default: true, section: 'output' },
+      'output.include_info_plist': { type: 'checkbox', label: 'Include Info.plist keys, entitlements and privacy manifest', default: true, section: 'output' },
+      'output.include_launch_plan': { type: 'checkbox', label: 'Include App Store launch plan and review checklist', default: true, section: 'output' },
+      'output.additional_instructions': { type: 'textarea', label: 'Additional Instructions', placeholder: 'Existing code, APIs to integrate, things to avoid, deadline...', section: 'output' },
+    };
+
+    const SCHEMAS = { image: IMAGE_SCHEMA, video: VIDEO_SCHEMA, motion: MOTION_SCHEMA, aftereffects: AE_SCHEMA, llm: LLM_SCHEMA, dev: DEV_SCHEMA, marketing: MARKETING_SCHEMA, vibe: VIBE_SCHEMA, frontend: FRONTEND_SCHEMA, android: ANDROID_SCHEMA, ios: IOS_SCHEMA, pm: PM_SCHEMA, loop: LOOP_SCHEMA, audio: AUDIO_SCHEMA, agent: AGENT_SCHEMA };
 
     const SELECT_SENTINELS = ['', 'none', 'ask_me', 'best_fit'];
     const SENTINEL_LABELS = {
@@ -1564,6 +1724,8 @@
       dev:          { group: 'software', title: 'Dev Prompt', shortTitle: 'Dev', desc: 'Full-stack specs for web, mobile, desktop and APIs, from architecture to deployment.', pasteTarget: 'ChatGPT, Claude, Cursor, or your AI coding tool' },
       vibe:         { group: 'software', title: 'Vibe Coder Prompt', shortTitle: 'Vibe Coder', desc: 'App builds for AI coding tools, guided by the stack decisions in The Vibe Coder\'s Handbook.', pasteTarget: 'Cursor, Claude Code, Bolt, Lovable, Replit, or your AI coding tool' },
       frontend:     { group: 'software', title: 'Frontend Design Prompt', shortTitle: 'Frontend', desc: 'Websites and interfaces: visual language, layout, type, motion and implementation.', pasteTarget: 'v0, Lovable, Bolt, Claude Code, or your AI design tool' },
+      android:      { group: 'software', title: 'Android App Prompt', shortTitle: 'Android', desc: 'Kotlin and Jetpack Compose apps from idea to Google Play launch, with cross-platform options.', pasteTarget: 'the Android Studio agent, Claude Code, Cursor, or your AI coding tool' },
+      ios:          { group: 'software', title: 'iOS App Prompt', shortTitle: 'iOS', desc: 'Swift and SwiftUI apps from idea to App Store launch, with cross-platform options.', pasteTarget: 'the Xcode coding agent, Claude Code, Cursor, or your AI coding tool' },
       marketing:    { group: 'business', title: 'Marketing Prompt', shortTitle: 'Marketing', desc: 'Campaigns, SEO, ads, email, social and analytics plans.', pasteTarget: 'ChatGPT, Claude, Jasper, or your AI marketing tool' },
       pm:           { group: 'business', title: 'Project Management Prompt', shortTitle: 'Project Management', desc: 'PMBOK 8 charters, plans, WBS, risk registers and status reports.', pasteTarget: 'ChatGPT, Claude, or your AI assistant' },
     };
@@ -1629,6 +1791,40 @@
         render:      { title: 'Render & Export',   desc: 'Render Queue, AME, codecs, Lottie' },
         performance: { title: 'Performance',       desc: 'Keep the project fast' },
         output:      { title: 'Response Format',   desc: 'Guide, code, depth, troubleshooting' },
+      },
+      android: {
+        intent: { title: "Idea", desc: "Describe the app in plain English" },
+        vision: { title: "Product", desc: "Name, category, users, MVP features" },
+        dev: { title: "You & Your Setup", desc: "Experience, explanation depth, machine, test devices" },
+        stack: { title: "Stack & Versions", desc: "Kotlin + Compose or cross-platform, min and target SDK" },
+        form: { title: "Devices & Surfaces", desc: "Phones, tablets, foldables, Wear OS, TV, Auto, widgets" },
+        arch: { title: "Architecture", desc: "Layers, modules, DI, navigation, concurrency" },
+        ui: { title: "UI & Design", desc: "Material 3, theming, screens, system UI, accessibility" },
+        data: { title: "Data & Backend", desc: "Storage, sync, networking, offline" },
+        auth: { title: "Accounts & Sign-In", desc: "Credential Manager, passkeys, biometrics" },
+        device: { title: "Device Features", desc: "Camera, location, notifications, sensors, permissions" },
+        ai: { title: "In-App AI", desc: "Gemini Nano, Firebase AI Logic, on-device models" },
+        quality: { title: "Quality", desc: "Testing, performance, crash reporting, security" },
+        money: { title: "Monetization", desc: "Business model, Play Billing, ads" },
+        launch: { title: "Google Play Launch", desc: "Verification, test tracks, policies, store listing" },
+        output: { title: "Response Format", desc: "Target AI tool, deliverable, extras" },
+      },
+      ios: {
+        intent: { title: "Idea", desc: "Describe the app in plain English" },
+        vision: { title: "Product", desc: "Name, category, users, MVP features" },
+        dev: { title: "You & Your Setup", desc: "Experience, explanation depth, machine, test devices" },
+        stack: { title: "Stack & Versions", desc: "SwiftUI or cross-platform, minimum iOS, concurrency" },
+        form: { title: "Devices & Surfaces", desc: "iPhone, foldable, iPad, Mac, Watch, widgets, Live Activities" },
+        arch: { title: "Architecture", desc: "Observation, modules, navigation, packages" },
+        ui: { title: "UI & Design", desc: "Liquid Glass, icon, screens, accessibility labels" },
+        data: { title: "Data & Backend", desc: "Storage, sync, networking, offline" },
+        auth: { title: "Accounts & Sign-In", desc: "Sign in with Apple, passkeys, Face ID, age range" },
+        device: { title: "Device Features", desc: "Camera, location, notifications, sensors, permissions" },
+        ai: { title: "In-App AI", desc: "Foundation Models, Private Cloud Compute, Core AI" },
+        quality: { title: "Quality", desc: "Testing, performance, crash reporting" },
+        money: { title: "Monetization", desc: "Business model, StoreKit 2, commission" },
+        launch: { title: "App Store Launch", desc: "Privacy, age rating, TestFlight, product page" },
+        output: { title: "Response Format", desc: "Target AI tool, deliverable, extras" },
       },
       llm: {
         target:    { title: 'Target Model',     desc: 'Model, reasoning effort, prompt structure' },
@@ -2017,6 +2213,90 @@
           'effects.native': ['glow', 'fractal_noise', 'camera_lens_blur'], 'effects.plugin_policy': 'native_only',
           'animation.motion_blur': true, 'render.method': 'adobe_media_encoder', 'render.codec': 'h264_mp4',
           'output.deliverable': 'step_by_step_build_guide',
+        },
+      },
+      android: {
+        'Offline Habit Tracker (first app)': {
+          'vision.category': 'health_and_fitness', 'vision.scale': 'personal_or_learning',
+          'vision.core_features': '- Create habits with a daily target\n- One-tap check-in\n- Streaks and a weekly chart\n- Daily reminder notification',
+          'dev.experience': 'new_to_coding', 'dev.explanation_level': 'explain_everything',
+          'stack.approach': 'native_kotlin_compose', 'stack.min_sdk': '24', 'stack.target_sdk': '36',
+          'form.targets': ['phone', 'tablet_and_foldable'], 'form.adaptive_layout': 'responsive_single_pane', 'form.widgets': true,
+          'arch.pattern': 'official_layers_udf_mvvm', 'arch.modules': 'single_module', 'arch.di': 'hilt', 'arch.navigation': 'navigation_3',
+          'ui.design_system': 'material_3_expressive', 'ui.system_behaviors': ['edge_to_edge_insets', 'predictive_back', 'splash_screen_api', 'themed_app_icon'],
+          'data.local_storage': ['room', 'datastore_preferences'], 'data.backend': 'none_local_only', 'data.offline': 'offline_first_sync_later',
+          'auth.method': ['no_account'], 'device.capabilities': ['push_notifications_fcm', 'background_work_workmanager'],
+          'quality.testing': ['unit_tests_with_fakes', 'compose_ui_tests'], 'quality.observability': ['firebase_crashlytics'],
+          'money.model': 'free', 'launch.account_type': 'personal_new', 'launch.release_tracks': ['internal_testing', 'closed_testing', 'production_staged_rollout'],
+          'launch.checklist': ['developer_verification', 'signed_aab_play_app_signing', 'data_safety_form', 'content_rating_iarc', 'privacy_policy_url'],
+          'launch.listing': ['app_icon_512', 'feature_graphic_1024x500', 'phone_screenshots', 'short_description_80', 'full_description'],
+          'output.target_tool': 'android_studio_agent', 'output.deliverable': 'phased_build_milestones',
+        },
+        'KMP Startup MVP (Android + iOS)': {
+          'vision.scale': 'startup_mvp', 'dev.experience': 'experienced_android', 'dev.explanation_level': 'explain_decisions_only',
+          'stack.approach': 'kotlin_multiplatform_compose_multiplatform', 'stack.min_sdk': '26', 'stack.target_sdk': '36',
+          'form.targets': ['phone', 'tablet_and_foldable'], 'form.adaptive_layout': 'adaptive_list_detail_and_nav_suite',
+          'arch.pattern': 'official_layers_udf_mvvm', 'arch.modules': 'feature_and_core_modules_like_now_in_android', 'arch.di': 'metro', 'arch.navigation': 'navigation_3',
+          'data.local_storage': ['sqldelight_kmp', 'datastore_preferences'], 'data.backend': 'supabase', 'data.networking': 'ktor_client', 'data.serialization': 'kotlinx_serialization', 'data.offline': 'cache_for_reading', 'data.images': 'coil_3',
+          'auth.method': ['passkeys_credential_manager', 'sign_in_with_google_credential_manager', 'supabase_auth'],
+          'quality.testing': ['unit_tests_with_fakes', 'compose_ui_tests', 'screenshot_tests_roborazzi'], 'quality.performance': ['baseline_profiles', 'r8_full_mode'],
+          'quality.observability': ['sentry', 'posthog'], 'quality.security': ['play_integrity_api', 'no_secrets_in_apk'],
+          'money.model': 'freemium_subscription', 'money.billing': 'revenuecat', 'launch.account_type': 'organization',
+          'output.target_tool': 'Claude Code', 'output.deliverable': 'project_scaffold_only',
+        },
+        'Wear OS Workout Companion': {
+          'vision.category': 'health_and_fitness', 'dev.experience': 'some_android',
+          'stack.approach': 'native_kotlin_compose', 'stack.min_sdk': '26', 'stack.target_sdk': '36',
+          'form.targets': ['phone', 'wear_os'], 'form.widgets': true,
+          'arch.modules': 'feature_modules', 'arch.di': 'hilt',
+          'device.capabilities': ['health_connect', 'sensors', 'foreground_service', 'bluetooth', 'push_notifications_fcm'], 'device.permissions_strategy': 'ask_in_context_with_rationale',
+          'data.local_storage': ['room'], 'data.offline': 'offline_first_sync_later',
+          'ai.features': ['gemini_nano_ml_kit_genai_on_device'], 'ai.use_cases': 'Summarize each workout on-device in one sentence',
+          'quality.testing': ['unit_tests_with_fakes', 'compose_ui_tests'], 'quality.performance': ['baseline_profiles'],
+          'launch.checklist': ['data_safety_form', 'permissions_declarations', 'target_audience_and_families', 'account_deletion_flow'],
+          'output.deliverable': 'full_build_plan_then_code',
+        },
+      },
+      ios: {
+        'Private Journal with On-Device AI': {
+          'vision.category': 'lifestyle', 'vision.scale': 'indie_launch',
+          'vision.core_features': '- Daily entries with photos\n- On-device mood summary\n- Face ID lock\n- iCloud sync across devices',
+          'dev.experience': 'new_to_ios', 'dev.explanation_level': 'explain_decisions_only', 'dev.mac': 'apple_silicon_mac',
+          'stack.approach': 'native_swift_swiftui', 'stack.min_ios': '26', 'stack.swift_concurrency': 'swift_6_strict_concurrency',
+          'form.targets': ['iphone', 'ipad'], 'form.extensions': ['widgets_widgetkit', 'app_intents_siri_shortcuts'],
+          'arch.pattern': 'swiftui_observable_mv', 'arch.navigation': 'navigationsplitview',
+          'ui.design_language': 'native_liquid_glass', 'ui.app_icon': 'layered_icon_composer', 'ui.accessibility': ['voiceover', 'larger_text_dynamic_type', 'dark_interface', 'reduced_motion'],
+          'data.local_storage': ['swiftdata', 'keychain'], 'data.sync': 'icloud_cloudkit', 'data.offline': 'offline_first_sync_later',
+          'auth.method': ['no_account'], 'auth.biometric': true, 'device.capabilities': ['photos_picker'],
+          'ai.features': ['foundation_models_on_device'], 'ai.use_cases': 'Summarize the week and tag moods, entirely on-device',
+          'quality.testing': ['swift_testing', 'xcuitest'], 'money.model': 'one_time_unlock', 'money.billing': 'storekit_2', 'money.small_business': true,
+          'launch.checklist': ['developer_program_enrollment', 'privacy_manifest_required_reason_apis', 'app_privacy_nutrition_label', 'age_rating_questionnaire', 'privacy_policy_url', 'accessibility_nutrition_label'],
+          'launch.testflight': 'internal_then_external', 'launch.listing': ['app_icon', 'iphone_6_9_screenshots', 'ipad_13_screenshots', 'subtitle_30', 'keywords_100', 'description'],
+          'output.target_tool': 'xcode_coding_agent', 'output.deliverable': 'phased_build_milestones',
+        },
+        'Subscription App (StoreKit 2, first app)': {
+          'vision.scale': 'indie_launch', 'dev.experience': 'new_to_coding', 'dev.explanation_level': 'explain_everything',
+          'stack.approach': 'native_swift_swiftui', 'stack.min_ios': '26',
+          'form.targets': ['iphone'], 'arch.pattern': 'mvvm_observable', 'arch.navigation': 'tabview_with_stacks',
+          'data.local_storage': ['swiftdata'], 'data.sync': 'firebase', 'data.networking': 'urlsession_async_await',
+          'auth.method': ['sign_in_with_apple', 'email_password', 'firebase_auth'],
+          'money.model': 'freemium_subscription', 'money.billing': 'storekit_2', 'money.small_business': true,
+          'quality.observability': ['firebase_crashlytics', 'xcode_organizer_metrickit'],
+          'launch.checklist': ['developer_program_enrollment', 'bundle_id_signing_capabilities', 'privacy_manifest_required_reason_apis', 'app_privacy_nutrition_label', 'age_rating_questionnaire', 'privacy_policy_url', 'account_deletion_flow', 'review_notes_and_demo_account', 'export_compliance_encryption'],
+          'launch.testflight': 'internal_then_external', 'output.target_tool': 'Claude Code', 'output.deliverable': 'phased_build_milestones',
+        },
+        'iPad + iPhone Duo Productivity App': {
+          'vision.category': 'productivity', 'vision.scale': 'startup_mvp', 'dev.experience': 'experienced_ios', 'dev.explanation_level': 'code_first_minimal_notes',
+          'stack.approach': 'swiftui_with_uikit_interop', 'stack.min_ios': '27',
+          'form.targets': ['iphone', 'iphone_duo_foldable', 'ipad', 'mac_designed_for_ipad'], 'form.adaptive_layout': 'ipad_first_productivity',
+          'form.extensions': ['widgets_widgetkit', 'control_center_controls', 'app_intents_siri_shortcuts', 'spotlight_indexing', 'share_extension'],
+          'arch.pattern': 'the_composable_architecture', 'arch.modules': 'local_swift_packages_per_feature', 'arch.navigation': 'navigationsplitview',
+          'data.local_storage': ['swiftdata'], 'data.sync': 'icloud_cloudkit',
+          'auth.method': ['sign_in_with_apple', 'passkeys'], 'ai.features': ['foundation_models_on_device', 'app_intents_for_siri_ai'],
+          'quality.testing': ['swift_testing', 'xcuitest', 'app_intents_testing', 'snapshot_tests'], 'quality.performance': ['instruments_profiling', 'swift_concurrency_instrument'],
+          'money.model': 'freemium_subscription', 'money.billing': 'storekit_2',
+          'launch.listing': ['app_icon', 'iphone_6_9_screenshots', 'ipad_13_screenshots', 'iphone_duo_screenshots', 'app_preview_video', 'custom_product_pages'],
+          'output.target_tool': 'xcode_coding_agent', 'output.deliverable': 'architecture_review',
         },
       },
       llm: {
@@ -3008,7 +3288,7 @@
     // Home index: builders grouped by discipline (TYPE_META.group). Unknown groups fall into "Other".
     const BUILDER_GROUPS = [['media', 'Media'], ['language', 'Language & Agents'], ['software', 'Software'], ['business', 'Business']];
     // Two-letter "element" symbols for the periodic-table home. Unknown builders fall back to their first two letters.
-    const BUILDER_SYMBOLS = { image: 'Im', video: 'Vi', motion: 'Md', aftereffects: 'Ae', audio: 'Au', llm: 'Ll', agent: 'Ag', loop: 'Lp', dev: 'Dv', vibe: 'Vc', frontend: 'Fe', marketing: 'Mk', pm: 'Pm' };
+    const BUILDER_SYMBOLS = { image: 'Im', video: 'Vi', motion: 'Md', aftereffects: 'Ae', audio: 'Au', llm: 'Ll', agent: 'Ag', loop: 'Lp', dev: 'Dv', vibe: 'Vc', frontend: 'Fe', android: 'An', ios: 'Io', marketing: 'Mk', pm: 'Pm' };
     const builderSymbol = type => BUILDER_SYMBOLS[type] || (TYPE_META[type]?.shortTitle || type).slice(0, 2);
     const builderFamily = type => BUILDER_GROUPS.some(([id]) => id === TYPE_META[type]?.group) ? TYPE_META[type].group : 'pipelines';
     const MODEL_REVIEW_DATE = '2026-09-25';
