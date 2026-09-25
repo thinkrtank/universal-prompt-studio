@@ -73,12 +73,12 @@
     html.dark, html.dark [data-family] { --accent-soft: color-mix(in srgb, var(--accent) 35%, var(--bg)); --accent-text: color-mix(in srgb, var(--accent) 50%, #ffffff); }
 
     /* Periodic-table tiles on the home screen. Hover inverts to paper; nothing moves. */
-    .tile { position: relative; display: flex; flex-direction: column; min-height: 15.5rem; padding: 0.9rem 1rem 1rem; text-align: left; background: var(--accent); color: var(--on-fam); border: 1px solid var(--accent); border-radius: 2px; cursor: pointer; }
+    .tile { position: relative; display: flex; flex-direction: column; min-height: 11.6rem; padding: 0.7rem 0.75rem 0.8rem; text-align: left; background: var(--accent); color: var(--on-fam); border: 1px solid var(--accent); border-radius: 2px; cursor: pointer; }
     .tile:hover { background: var(--bg); color: var(--ink); border-color: var(--ink); }
     .tile:hover .tile-sym { color: var(--accent-text); }
     @media (max-width: 639px) { .tile { min-height: 9.5rem; } .tile-sym { margin-top: 0.6rem; } }
-    .tile-sym { font-family: Newsreader, Georgia, serif; font-size: 3.6rem; line-height: 1; letter-spacing: -0.03em; margin-top: 1.1rem; }
-    .tile-meta { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; letter-spacing: 0.04em; opacity: 0.85; }
+    .tile-sym { font-family: Newsreader, Georgia, serif; font-size: 2.7rem; line-height: 1; letter-spacing: -0.03em; margin-top: 0.8rem; }
+    .tile-meta { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10px; letter-spacing: 0.04em; opacity: 0.85; }
     /* Builder header band in the family hue; controls inside it invert. */
     .band { background: var(--accent); color: var(--on-fam); }
     .band .btn { border-color: var(--on-fam); color: var(--on-fam); }
@@ -4144,7 +4144,7 @@
               )}
 
               <h2 className="kicker mt-12 mb-3">Choose a builder</h2>
-              <ul className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-2">
+              <ul className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1.5">
                 {tileTypes.map((type, i) => {
                   const meta = TYPE_META[type];
                   const [a, b] = tileStats(type);
@@ -4153,8 +4153,8 @@
                       <button type="button" onClick={() => setPromptType(type)} className="tile w-full h-full" aria-label={`${meta.shortTitle} builder`}>
                         <span className="tile-meta flex justify-between gap-2"><span>{pad2(i + 1)}</span><span className="hidden sm:block text-right">{a}<br />{b}</span></span>
                         <span className="tile-sym" aria-hidden="true">{builderSymbol(type)}</span>
-                        <span className="mt-3 font-semibold text-[1.05rem] leading-tight">{meta.shortTitle}</span>
-                        <span className="mt-1.5 text-[13px] leading-snug opacity-90 hidden sm:block">{meta.desc}</span>
+                        <span className="mt-2 font-semibold text-[0.9rem] leading-tight">{meta.shortTitle}</span>
+                        <span className="mt-1 text-[11.5px] leading-snug opacity-90 hidden sm:block">{meta.desc}</span>
                       </button>
                     </li>
                   );
@@ -4163,15 +4163,15 @@
                   <button type="button" onClick={() => setShowChain(true)} className="tile w-full h-full" aria-label="Chain Builder">
                     <span className="tile-meta flex justify-between gap-2"><span>{pad2(tileTypes.length + 1)}</span><span className="hidden sm:block text-right">{CHAIN_TARGETS.length} platforms</span></span>
                     <span className="tile-sym" aria-hidden="true">Ch</span>
-                    <span className="mt-3 font-semibold text-[1.05rem] leading-tight">Chain Builder</span>
-                    <span className="mt-1.5 text-[13px] leading-snug opacity-90 hidden sm:block">Multi-step pipelines where each step's output feeds the next, ending in a translation for any platform.</span>
+                    <span className="mt-2 font-semibold text-[0.9rem] leading-tight">Chain Builder</span>
+                    <span className="mt-1 text-[11.5px] leading-snug opacity-90 hidden sm:block">Multi-step pipelines where each step's output feeds the next, ending in a translation for any platform.</span>
                   </button>
                 </li>
-                <li className="border border-strong p-4 flex flex-col min-h-[9.5rem] sm:min-h-[15.5rem]" aria-label="Key">
+                <li className="border border-strong p-3 flex flex-col min-h-[9.5rem] sm:min-h-[11.6rem]" aria-label="Key">
                   <span className="tile-meta flex justify-between gap-2 text-muted"><span>No.</span><span className="text-right">Sections<br />Targets or fields</span></span>
                   <span className="tile-sym text-muted" aria-hidden="true">Sy</span>
-                  <span className="mt-3 font-semibold text-[1.05rem] leading-tight">Key</span>
-                  <ul className="mt-2 space-y-1 text-[13px] text-ink2">
+                  <span className="mt-2 font-semibold text-[0.9rem] leading-tight">Key</span>
+                  <ul className="mt-1.5 space-y-0.5 text-[11.5px] text-ink2">
                     {families.map(([id, label]) => (
                       <li key={id} data-family={id} className="flex items-center gap-2"><span className="swatch" aria-hidden="true" />{label}</li>
                     ))}
