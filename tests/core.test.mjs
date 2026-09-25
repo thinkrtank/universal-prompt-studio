@@ -34,7 +34,7 @@ test('preset values match field types and select options', () => {
 test('every section has fields and every builder has complete card metadata', () => {
   assert.deepEqual(Object.keys(core.TYPE_META).sort(), Object.keys(core.SCHEMAS).sort());
   for (const [type, meta] of Object.entries(core.TYPE_META)) {
-    for (const prop of ['icon', 'title', 'shortTitle', 'desc', 'color', 'pasteTarget']) assert.ok(meta[prop], `${type}: missing ${prop}`);
+    for (const prop of ['group', 'title', 'shortTitle', 'desc', 'pasteTarget']) assert.ok(meta[prop], `${type}: missing ${prop}`);
     const used = new Set(Object.values(core.SCHEMAS[type]).map(field => field.section));
     for (const section of Object.keys(core.SECTION_INFO[type])) assert.ok(used.has(section), `${type}: section ${section} has no fields`);
   }

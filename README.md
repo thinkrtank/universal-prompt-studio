@@ -58,23 +58,24 @@ That's it. Everything runs client-side in your browser — no server, no account
 | Templates | Save, load, and manage custom templates via localStorage |
 | Import / Export | JSON import/export for sharing prompts; export/import the entire template library to a file for backup |
 | Field search | Filter fields by name across all sections of a builder |
-| Output modes | Generate JSON or plain text output |
+| Output modes | Generate JSON or plain text output, with a live preview column on wide screens |
 | Sentinel values | Any field can be set to Skip / None / Ask Me About It / Best Fit |
 | Chain Builder | Multi-step sequential pipelines with output chaining |
 | Medium aesthetics | 10 artistic mediums with curated aesthetic keyword sets |
 | Industry skills | 25+ industry domains with top-10 skill arrays for LLM personas |
-| Dark mode | Light / Dark / System theme with persistent preference |
+| Dark mode | Light / Dark / Auto theme, applied before first paint |
 | Toast notifications | Non-intrusive feedback for copy, save, and error events |
 | Auto-save | Debounced auto-save with session recovery on next visit |
 
 ## Tech Stack
 
 - **React 18** (CDN, pinned)
-- **Tailwind CSS 3** (CDN)
+- **Tailwind CSS 3** (CDN) with a small token-based design system
+- **Newsreader, IBM Plex Sans, IBM Plex Mono** (Google Fonts)
 - **Babel Standalone** (in-browser JSX compilation)
 - **localStorage** for persistence
 
-No npm, no webpack, no node_modules. The browser app is a single HTML file that loads React, Babel, and Tailwind from CDNs. React and Babel use pinned versions and integrity hashes; Tailwind Play CDN remains an external dependency. The optional MCP service uses Node.js and pinned npm dependencies.
+No npm, no webpack, no node_modules. The browser app is a single HTML file that loads React, Babel, Tailwind and its fonts from CDNs. React and Babel use pinned versions and integrity hashes; Tailwind Play CDN remains an external dependency. The optional MCP service uses Node.js and pinned npm dependencies.
 
 ## Reliability and agent access update
 

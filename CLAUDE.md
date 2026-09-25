@@ -19,7 +19,8 @@ No npm or bundler is required for browser use. The optional MCP service and regr
 
 - React 18.3.1 + ReactDOM (production UMD builds, pinned versions)
 - Babel Standalone 7.26.9 (in-browser JSX compilation via `<script type="text/babel">`)
-- Tailwind CSS 3 (CDN, configured with `darkMode: 'class'`)
+- Tailwind CSS 3 (CDN, configured with `darkMode: 'class'`, semantic color tokens, 2px radius and no shadows)
+- Google Fonts: Newsreader (headings), IBM Plex Sans (body), IBM Plex Mono (labels, code)
 
 ### Code Layout (inside the HTML file)
 
@@ -62,7 +63,7 @@ All UI is generated dynamically from schema objects (`IMAGE_SCHEMA`, `LLM_SCHEMA
 - `optionLabels` — optional display labels for select/multiselect values (lets values stay stable while names change)
 - `modelProfiles` — marks the one select whose value picks a `MODEL_PROFILES[family]` entry (`'image'`, `'video'`, `'llm'`, `'audio'`)
 
-The `SCHEMAS` object maps prompt types to their schemas. `SECTION_INFO` provides titles/icons/descriptions per section. `TYPE_META` stores mode metadata (icon, title, color gradient, paste target).
+The `SCHEMAS` object maps prompt types to their schemas. `SECTION_INFO` provides titles/descriptions per section. `TYPE_META` stores builder metadata (`group` for the home index, title, shortTitle, desc, pasteTarget).
 
 ### Dot-Path Keys
 Schema keys use dot notation (`'subject.hair_color'`, `'meta.aspect_ratio'`). These are stored flat in `formData` state — **not** nested.
@@ -86,8 +87,11 @@ Template and chain writes use `safeLocalStorageSet()` and change UI state only a
 ### Toast Bus
 A lightweight pub/sub event bus (`toastBus`) decoupled from the React tree. Call `showToast(message, type)` from anywhere. The `ToastContainer` component subscribes via `useEffect`.
 
+### Visual Design
+The look is a technical reference manual: warm paper and ink with one oxide accent, hairline rules, 2px corners, no shadows, gradients, emoji, icon fonts or hover motion. Colors are CSS variables on `:root` / `html.dark` exposed to Tailwind as `paper`, `surface`, `field`, `code`, `ink`, `ink2`, `muted`, `rule`, `strong`, `accent`, `accentsoft`, `ok`, `err` (so no `dark:` variants are needed). Reusable component classes live in the head `<style>`: `.fld` (inputs), `.btn` / `.btn-primary` / `.btn-quiet` / `.btn-danger`, `.seg` (segmented control), `.grid-cells` + `.cell` (option grids), `.row` (home index), `.sec` (section list), `.scrim` + `.dialog`, `.code` (`CodeView`), `.toast`, `.kicker` (mono labels). Keep UI copy free of em dashes. The `#root` placeholder is a static skeleton shown until React mounts.
+
 ### Dark Mode
-`useDarkMode()` hook returns `[isDark, mode, setMode]`. Manages the `dark` class on `<html>` and syncs with `prefers-color-scheme` when mode is `'system'`. Persists to localStorage.
+`useDarkMode()` hook returns `[isDark, mode, setMode]`. Manages the `dark` class on `<html>` and syncs with `prefers-color-scheme` when mode is `'system'`. Persists to localStorage. A small inline script in `<head>` applies the saved theme before first paint.
 
 ### Chain Builder
 A separate component (`ChainBuilder`) for multi-step prompt pipelines. Steps use `standard` or `translate` types. The shared core validates unique IDs/output labels and earlier-step inputs. Includes "translate" steps that describe adaptations for 30+ platform targets (Canva, Figma, GitHub, Vercel, n8n, After Effects, Lottie Creator, Rive, etc.).
@@ -100,12 +104,12 @@ A separate component (`ChainBuilder`) for multi-step prompt pipelines. Steps use
    'section.field_name': { type: 'select', label: 'My Field', options: [...], default: '...', section: 'section_name' }
    ```
 2. If the section already exists in `SECTION_INFO`, the field appears automatically.
-3. If adding a new section, add an entry to `SECTION_INFO[type]` with `title`, `icon`, `desc`.
+3. If adding a new section, add an entry to `SECTION_INFO[type]` with `title` and `desc`.
 
 ### Adding a New Prompt Type
 1. Define a new schema constant (e.g., `AUDIO_SCHEMA`).
 2. Add it to the `SCHEMAS` object.
-3. Add metadata to `TYPE_META` (icon, title, desc, color gradient, pasteTarget).
+3. Add metadata to `TYPE_META` (group, title, shortTitle, desc, pasteTarget). `group` is one of `BUILDER_GROUPS` (media, language, software, business).
 4. Add section info to `SECTION_INFO`.
 5. Optionally add presets to `PRESETS`.
 6. Update the builder counts in `tests/core.test.mjs`, `tests/mcp.test.mjs`, `README.md` and `mcp/README.md`.
