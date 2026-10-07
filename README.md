@@ -1,6 +1,6 @@
 # Universal Prompt Studio
 
-A browser-based prompt engineering studio. Sixteen guided builders turn plain-English ideas into structured, model-ready prompts for image and video generation, motion design, After Effects, audio, LLM chats, agents and agent loops, software, frontend design, Android and iOS apps, marketing and project management. Pick a target model and the output also carries that model's prompting tips, limit warnings and native syntax.
+A browser-based prompt engineering studio. Seventeen guided builders turn plain-English ideas into structured, model-ready prompts for image and video generation, video editing, motion design, After Effects, audio, LLM chats, agents and agent loops, software, frontend design, Android and iOS apps, marketing and project management. Pick a target model and the output also carries that model's prompting tips, limit warnings and native syntax.
 
 **No installation or build step for the browser app. Open the HTML file with an internet connection.**
 
@@ -9,7 +9,7 @@ Optional [MCP agent access](mcp/README.md) supports agents on your PC or Raspber
 ![HTML5](https://img.shields.io/badge/HTML5-Single_File-orange) ![React](https://img.shields.io/badge/React-18-blue) ![Tailwind](https://img.shields.io/badge/Tailwind_CSS-3-38bdf8) ![License](https://img.shields.io/badge/License-MIT-green)
 
 <p align="center">
-  <a href="screenshots/home.png"><img src="screenshots/home.png" width="760" alt="Universal Prompt Studio home screen: a periodic table of sixteen builders grouped into color-coded families"></a>
+  <a href="screenshots/home.png"><img src="screenshots/home.png" width="760" alt="Universal Prompt Studio home screen: a periodic table of seventeen builders grouped into color-coded families"></a>
 </p>
 
 ## Quick Start
@@ -30,7 +30,7 @@ Everything runs client-side in your browser. There is no server, no account and 
 | [<img src="screenshots/android-builder.png" alt="Android App Prompt Builder, Stack and Versions section">](screenshots/android-builder.png) *Android builder: Compose-first stack with verified SDK levels* | [<img src="screenshots/ios-builder.png" alt="iOS App Prompt Builder, App Store Launch section">](screenshots/ios-builder.png) *iOS builder: App Store launch checklist and product page* |
 | [<img src="screenshots/llm-builder-dark.png" alt="LLM Prompt Builder in dark mode">](screenshots/llm-builder-dark.png) *LLM builder in dark mode with Claude Opus 5.5 notes* | [<img src="screenshots/frontend-builder.png" alt="Frontend Design Prompt Builder">](screenshots/frontend-builder.png) *Frontend Design builder: brand and content* |
 | [<img src="screenshots/pm-builder.png" alt="Project Management Prompt Builder">](screenshots/pm-builder.png) *Project Management builder: PMBOK 8 Seven Questions* | [<img src="screenshots/loop-builder.png" alt="Agent Loop Prompt Builder">](screenshots/loop-builder.png) *Agent Loop builder: stop conditions and verification gates* |
-| [<img src="screenshots/chain-builder.png" alt="Chain Builder">](screenshots/chain-builder.png) *Chain Builder: multi-step pipelines* | |
+| [<img src="screenshots/chain-builder.png" alt="Chain Builder">](screenshots/chain-builder.png) *Chain Builder: multi-step pipelines* | [<img src="screenshots/videoedit-builder.png" alt="Video Editing Prompt Builder, Hook section with a UGC ad preset">](screenshots/videoedit-builder.png) *Video Editing builder: hook types and test variants for a UGC ad* |
 
 <sub>Click any thumbnail to view full size.</sub>
 
@@ -42,6 +42,13 @@ The home screen is laid out like a periodic table. Each builder is an element ti
 
 - **Image Prompt Builder.** Target-model picker for 30 models: GPT Image 2.5 Flare and Sunburst, Nano Banana 2, Lite and Pro, Midjourney V8.2, V7 and Niji 7, FLUX.2 and FLUX 3, Ideogram 4, Recraft V4.1, Seedream 5, Qwen-Image 2.1, Firefly Image 5, local SD 3.5 and SDXL, and more. Covers subject, scene, camera, lighting, composition, style, text layout, multi-reference and instruction edits, output format (SVG, layered, transparent), Midjourney parameters and local diffusion settings. Output includes ready-to-paste Midjourney flags or A1111/ComfyUI infotext, and warns about unsupported ratios, resolutions, reference counts and negative prompts.
 - **Video Prompt Builder.** Target-model picker for 22 models: Gemini Omni Flash, Veo 3.1, Kling 3.0 (Omni, Turbo, Motion Control), Runway Gen-4.5 and Aleph, Luma Ray3.2, Seedance 2.x, MiniMax H3, Wan 3.0, LTX-2.5, Vidu Q3, Grok Imagine Video 1.5, Midjourney Video and more. Adds multi-shot storyboards, first and last frames, reference images, videos and audio (Seedance `@Image1` tokens), motion transfer, edit-existing-footage modes, timestamped action, dialogue with lip-sync, and duration and resolution checks per model.
+- **Video Editing Prompt Builder.** Edit plans for footage you already have, written from an editor's and a marketer's point of view. Pick a tool: Adobe Premiere 26, Premiere mobile, DaVinci Resolve 21, Final Cut Pro 12, Avid Media Composer, CapCut, Descript (Underlord), OpusClip, VEED, Canva, iMovie, an LLM or a human editor. The output carries tool notes and maps the automation you pick (filler removal, auto captions, auto reframe, multicam switching, AI clipping and more) to that tool's own feature names. The marketing side covers:
+  - objective and funnel stage, audience awareness level, proof and KPIs (hook rate, hold rate, CPA, ROAS)
+  - story frameworks (PAS, AIDA, UGC ad formula, hook-story-offer) and hook types, with alternate hooks for testing
+  - pacing and retention devices, cut techniques, B-roll and graphics
+  - burned-in caption style, color workflow, dialogue cleanup and loudness targets
+  - a hero platform plus cutdowns with a hooks × lengths × CTAs test matrix
+  - CTA placement, post copy per platform, and rights and policy checks (music licensing, AI and paid-partnership disclosure, originality)
 - **Motion Design Prompt Builder.** A tool-agnostic motion brief for logo reveals, kinetic typography, UI micro-interactions, explainers, social ads and more. Targets After Effects, Jitter, Lottie Creator, Rive, Cavalry, Spline, code (GSAP, Motion, Remotion) or any AI video model. Covers style, typography animation, timing and easing (including the 12 principles of animation), choreography and transitions, sound sync, deliverables (Lottie, .riv, ProRes 4444, safe zones) and accessibility.
 - **After Effects Prompt Builder.** Technical AE 26.x build prompts for an LLM, the AE AI Assistant, an AE MCP server or a human: comp setup, layer structure, keyframing and easing, expressions (JavaScript or legacy engine), ExtendScript and ScriptUI automation, Duik rigging, Advanced 3D with native shapes and Substance materials, native and third-party effects, MOGRTs, rendering and performance.
 - **Audio Prompt Builder.** For Suno v6, Udio, ElevenLabs v3, Music and SFX, Lyria 3.5, Stable Audio 3, MiniMax, and Gemini and OpenAI TTS. Covers genre, mood, BPM, key, time signature, dynamics, lyrics with section tags, voice design, inline delivery tags, multi-speaker dialogue, pronunciation, a sound-effects section, loudness targets, stems and licensing.
@@ -76,7 +83,7 @@ The home screen is laid out like a periodic table. Each builder is an element ti
 | Model-aware output | Pick a target model or tool and the output gains a `model_guidance` block: prompting tips, API model id, compatibility warnings and native syntax |
 | Live output | JSON or plain-text preview beside the form on wide screens, updated as you type |
 | Schema-driven forms | All forms are generated from schema definitions; the section list shows how many fields you changed in each section |
-| Presets | 80 one-click presets across the builders (Midjourney V8.2 Editorial, Veo 3.1 Dialogue Scene, Logo Reveal, Offline Habit Tracker, Private Journal with On-Device AI, and more) |
+| Presets | 86 one-click presets across the builders (Midjourney V8.2 Editorial, Veo 3.1 Dialogue Scene, UGC Paid Social Ad, Logo Reveal, Offline Habit Tracker, Private Journal with On-Device AI, and more) |
 | Templates | Save, open and delete your own templates in the browser; export or import the whole library as a file |
 | Import / export | Paste a previously exported prompt (nested or flat JSON) to repopulate a builder |
 | Field search | Search fields by name across every section of a builder |

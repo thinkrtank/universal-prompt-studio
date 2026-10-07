@@ -418,6 +418,42 @@
         adobe_podcast:           { label: 'Adobe Podcast (Enhance Speech)', status: 'current',
           notes: ['Cleans up existing recordings: use this builder to write the script and recording notes.'] },
       },
+      videoedit: {
+        premiere_pro:          { label: 'Adobe Premiere 26 (desktop, formerly Premiere Pro)', status: 'current',
+          notes: ['Rough-cut talking heads in the Text panel: edit the transcript and the timeline follows.', 'Name AI tools explicitly: Generative Extend for short gaps, Enhance Speech for dialogue, Auto Reframe for vertical, Object Mask for isolating subjects.', 'Ask for Essential Graphics and caption track styles so every cutdown shares one look.'],
+          native: d => editorNative(d, { transcript_editing: 'Text panel: Text-Based Editing', filler_word_removal: 'Text panel: detect and delete filler words', silence_removal: 'Text panel: detect and delete pauses', auto_captions: 'Speech to Text: Create captions', caption_translation: 'Caption Translation', auto_reframe: 'Auto Reframe Sequence', scene_edit_detection: 'Scene Edit Detection', footage_search: 'Media Intelligence search (natural language)', voice_isolation: 'Essential Sound: Enhance Speech', generative_extend: 'Generative Extend (Firefly)', object_masking: 'Object Mask (select and track)' }) },
+        premiere_mobile:       { label: 'Adobe Premiere (iPhone / Android)', status: 'current',
+          notes: ['Free multi-track mobile editor that replaced Premiere Rush (retired September 30, 2026).', 'Keep requests to phone-sized steps: trim, captions, voiceover, AI sound effects, export to social.'] },
+        davinci_resolve:       { label: 'DaVinci Resolve 21 / Studio', status: 'current',
+          notes: ['IntelliScript builds a first assembly from a script and transcribed takes; alternates land on extra tracks.', 'Grade on the Color page with nodes; finish dialogue and loudness on the Fairlight page.', 'Resolve 21.1 can be driven by Claude, Claude Code or Codex: phrase the plan as discrete, verifiable steps.', 'Several AI tools (Voice Isolation, Magic Mask, Smart Reframe) need the Studio license.'],
+          native: d => editorNative(d, { transcript_editing: 'Transcription: text-based editing', silence_removal: 'Transcription: detect and remove silences', auto_captions: 'Create Subtitles from Audio, AI Animated Subtitles', multicam_auto_switch: 'AI Multicam SmartSwitch', scene_edit_detection: 'Scene Cut Detector', footage_search: 'IntelliSearch', voice_isolation: 'Voice Isolation (Studio)', object_masking: 'Magic Mask (Studio)', auto_reframe: 'Smart Reframe (Studio)' }) },
+        final_cut_pro:         { label: 'Final Cut Pro 12', status: 'current',
+          notes: ['Use the magnetic timeline: primary storyline for A-roll, connected clips for B-roll and graphics.', 'Generate Captions, Transcript Search and Visual Search run on-device on Apple silicon.', 'Beat Detection marks bars and beats on the music track: say which beats the cuts should land on.'],
+          native: d => editorNative(d, { auto_captions: 'Generate Captions', footage_search: 'Transcript Search and Visual Search', beat_detection: 'Beat Detection', scene_edit_detection: 'Edit Detection', auto_reframe: 'Smart Conform', object_masking: 'Magnetic Mask', voice_isolation: 'Voice Isolation (audio inspector)' }) },
+        avid_media_composer:   { label: 'Avid Media Composer 2026', status: 'current',
+          notes: ['Long-form, broadcast and shared-storage work: organize bins and naming before the cut.', 'PhraseFind AI and ScriptSync AI find lines; Multicam Auto Cut switches angles by speaker.', 'Hand off with AAF and EDL for sound and color.'],
+          native: d => editorNative(d, { transcript_editing: 'Transcript Tools', footage_search: 'PhraseFind AI / ScriptSync AI', multicam_auto_switch: 'PhraseFind AI Multicam Auto Cut' }) },
+        capcut:                { label: 'CapCut (desktop / mobile)', status: 'current',
+          notes: ['Built for TikTok-native editing: trending templates, sounds and caption styles.', 'Ask for AutoCut or Auto-Edit to propose a first cut, then refine pacing by hand.', 'Check which features sit behind the Standard or Pro plan before planning around them.'],
+          native: d => editorNative(d, { auto_captions: 'Auto captions', caption_translation: 'Caption translation', auto_reframe: 'Auto reframe', ai_clipping: 'AutoCut (long video to clips)', beat_detection: 'Auto beat markers on the music track', voice_isolation: 'Enhance voice / Reduce noise', dubbing_translation: 'Video translator' }) },
+        descript:              { label: 'Descript (Underlord agent)', status: 'current',
+          notes: ['Edit by editing the transcript; give Underlord plain-language commands, one task per line.', 'Save recurring preferences (pacing, caption style, layouts) as Underlord custom instructions.', 'Strong for podcasts, talking heads and repurposing long recordings into clips.'],
+          native: d => editorNative(d, { transcript_editing: 'Edit the transcript', filler_word_removal: 'Remove filler words', silence_removal: 'Shorten word gaps', auto_captions: 'Captions', voice_isolation: 'Studio Sound', eye_contact_correction: 'Eye Contact', multicam_auto_switch: 'Automatic multicam', ai_clipping: 'Create clips', dubbing_translation: 'Translate and dub' }) },
+        opus_clip:             { label: 'OpusClip', status: 'current',
+          notes: ['Repurposes long videos into ranked short clips with a virality score: review the top picks, never post blind.', 'Set clip length, aspect ratio and caption template before processing.', 'ClipAnything finds moments from a prompt: describe the moment, not the timestamp.'],
+          native: d => editorNative(d, { ai_clipping: 'ClipAnything', auto_reframe: 'AI reframe', auto_captions: 'Animated caption templates' }) },
+        veed:                  { label: 'VEED', status: 'current',
+          notes: ['Browser editor for fast social edits and team review.', 'Magic Cut removes fillers and pauses; subtitles cover 125+ languages.'],
+          native: d => editorNative(d, { auto_captions: 'Auto Subtitles', filler_word_removal: 'Magic Cut', silence_removal: 'Magic Cut', eye_contact_correction: 'Eye Contact Correction', dubbing_translation: 'AI dubbing and translation', voice_isolation: 'Clean Audio' }) },
+        canva_video:           { label: 'Canva video editor', status: 'current',
+          notes: ['Template-led, on-brand edits: name the Brand Kit fonts, colors and logo.', 'Best for simple timelines, text-heavy social posts and quick resizes.'] },
+        imovie:                { label: 'iMovie', status: 'legacy',
+          notes: ['Mac and iOS only, with infrequent updates: keep to simple cuts, titles, music and export.', 'For captions, multicam or grading, plan to move to Final Cut Pro.'] },
+        llm_planner:           { label: 'Claude / ChatGPT (edit plan only)', status: 'current',
+          notes: ['Paste the transcript or a shot log with timecodes so the plan can reference real moments.', 'Ask for a paper edit and a timecoded cut list you can execute in any editor.'] },
+        human_editor:          { label: 'Human editor (brief handoff)', status: 'current',
+          notes: ['State deliverables, deadlines, review rounds and file handoff (project file, XML/AAF, stems).', 'Give references and the reason behind each choice so the editor can make judgment calls.'] },
+      },
     };
     const isSet = v => v !== undefined && v !== '' && v !== null;
     const midjourneyNative = (d, variant) => {
@@ -456,6 +492,11 @@
       const refs = [['Image', splitLines(d['shots.reference_images'])], ['Video', splitLines(d['shots.reference_videos'])], ['Audio', splitLines(d['shots.reference_audio'])]]
         .flatMap(([kind, items]) => items.map((item, i) => `@${kind}${i + 1} = ${item}`));
       return refs.length ? `Upload in this order and cite the tokens in the prompt text:\n${refs.join('\n')}` : null;
+    };
+    const editorNative = (d, features) => {
+      const wanted = Array.isArray(d['workflow.automation']) ? d['workflow.automation'] : [];
+      const lines = wanted.map(key => `${key.replace(/_/g, ' ')}: ${features[key] || 'no built-in tool; do it by hand or in another app'}`);
+      return lines.length ? `Feature map for the selected automation:\n${lines.join('\n')}` : null;
     };
     const GUIDANCE_SKIP = ['', 'none', 'ask_me', 'best_fit'];
     const modelGuidance = (profile, d) => {
@@ -1700,7 +1741,118 @@
       'output.additional_instructions': { type: 'textarea', label: 'Additional Instructions', placeholder: 'Existing code, APIs to integrate, things to avoid, deadline...', section: 'output' },
     };
 
-    const SCHEMAS = { image: IMAGE_SCHEMA, video: VIDEO_SCHEMA, motion: MOTION_SCHEMA, aftereffects: AE_SCHEMA, llm: LLM_SCHEMA, dev: DEV_SCHEMA, marketing: MARKETING_SCHEMA, vibe: VIBE_SCHEMA, frontend: FRONTEND_SCHEMA, android: ANDROID_SCHEMA, ios: IOS_SCHEMA, pm: PM_SCHEMA, loop: LOOP_SCHEMA, audio: AUDIO_SCHEMA, agent: AGENT_SCHEMA };
+    const EDIT_PLATFORMS = {
+      youtube: 'YouTube (long-form)', youtube_shorts: 'YouTube Shorts', tiktok: 'TikTok', instagram_reels: 'Instagram Reels', instagram_feed: 'Instagram feed',
+      instagram_stories: 'Instagram Stories', facebook: 'Facebook', linkedin: 'LinkedIn', x: 'X', pinterest: 'Pinterest', snapchat: 'Snapchat',
+      ctv_ott: 'Connected TV / streaming ads', website: 'Website or landing page', broadcast: 'Broadcast TV', festival: 'Festival / cinema',
+    };
+    const VIDEOEDIT_SCHEMA = {
+      user_intent: { type: 'textarea', label: 'What footage do you have, and what should it become?', placeholder: 'e.g., 40 minutes of a two-camera founder interview plus product B-roll. I need a 60-second YouTube ad and vertical cutdowns that drive free-trial sign-ups.', section: 'intent' },
+      // Project & footage
+      'project.edit_type': { type: 'select', label: 'Edit Type', options: ['social_short', 'paid_social_ad', 'ugc_ad', 'youtube_long_form', 'podcast_video', 'talking_head', 'tutorial_screen_recording', 'product_demo', 'brand_film', 'testimonial_case_study', 'documentary_story', 'event_recap', 'wedding_highlight', 'music_video', 'trailer_teaser', 'course_lesson', 'webinar_repurpose', 'livestream_clips', 'real_estate_tour', 'corporate_internal'], optionLabels: { ugc_ad: 'UGC ad', youtube_long_form: 'YouTube long-form' }, section: 'project' },
+      'project.footage': { type: 'multiselect', label: 'Footage You Have', options: ['a_roll_talking_head', 'interview_multicam', 'b_roll', 'screen_recording', 'product_shots', 'drone', 'phone_vertical', 'ugc_creator_clips', 'stock', 'ai_generated_clips', 'archival', 'live_event', 'podcast_multicam', 'gameplay', 'voiceover_only'], optionLabels: { a_roll_talking_head: 'A-roll (talking head)', b_roll: 'B-roll', ugc_creator_clips: 'UGC creator clips', ai_generated_clips: 'AI-generated clips' }, section: 'project' },
+      'project.raw_runtime': { type: 'text', label: 'Raw Runtime', placeholder: 'e.g., 2 h of interview, 25 min of B-roll', section: 'project' },
+      'project.script_status': { type: 'select', label: 'Script Status', options: ['full_script', 'outline', 'transcript_only', 'unscripted_find_the_story'], section: 'project' },
+      'project.color_profile': { type: 'select', label: 'Camera Color Profile', options: ['rec709', 's_log3', 'c_log', 'v_log', 'apple_log', 'd_log', 'hlg', 'mixed', 'unknown'], optionLabels: { rec709: 'Rec.709 (standard)', s_log3: 'S-Log3', c_log: 'C-Log', v_log: 'V-Log', apple_log: 'Apple Log', d_log: 'D-Log (DJI)', hlg: 'HLG', mixed: 'Mixed profiles' }, section: 'project' },
+      'project.footage_notes': { type: 'textarea', label: 'Footage Notes', placeholder: 'Cameras, frame rates, problem shots, audio issues, takes to avoid, must-use moments', section: 'project' },
+      // Editor & workflow
+      'workflow.editor': { type: 'select', label: 'Editing Tool', options: profileOptions('videoedit'), optionLabels: profileLabels('videoedit'), modelProfiles: 'videoedit', placeholder: 'Adds tool notes and maps the automation below to that tool\'s features.', section: 'workflow' },
+      'workflow.output_kind': { type: 'select', label: 'What Should the AI Produce?', options: ['paper_edit_plan', 'timecoded_cut_list', 'step_by_step_in_tool', 'ai_co_editor_commands', 'freelancer_brief', 'repurposing_plan', 'review_notes_on_existing_cut'], optionLabels: { ai_co_editor_commands: 'Commands for an AI co-editor', review_notes_on_existing_cut: 'Review notes on an existing cut' }, default: 'paper_edit_plan', section: 'workflow' },
+      'workflow.skill_level': { type: 'select', label: 'Your Editing Experience', options: ['beginner', 'intermediate', 'professional'], default: 'intermediate', section: 'workflow' },
+      'workflow.automation': { type: 'multiselect', label: 'Automation to Use', options: ['transcript_editing', 'filler_word_removal', 'silence_removal', 'auto_captions', 'caption_translation', 'auto_reframe', 'multicam_auto_switch', 'beat_detection', 'scene_edit_detection', 'footage_search', 'voice_isolation', 'generative_extend', 'object_masking', 'eye_contact_correction', 'ai_clipping', 'dubbing_translation'], optionLabels: { ai_clipping: 'AI clipping (long to short)', footage_search: 'AI footage search' }, section: 'workflow' },
+      // Marketing strategy
+      'strategy.objective': { type: 'select', label: 'Business Objective', options: ['awareness_reach', 'engagement', 'traffic', 'lead_gen', 'conversion_sales', 'app_installs', 'retention_loyalty', 'education_authority', 'employer_brand'], optionLabels: { lead_gen: 'Lead generation' }, section: 'strategy' },
+      'strategy.funnel_stage': { type: 'select', label: 'Funnel Stage', options: ['tofu_awareness', 'mofu_consideration', 'bofu_decision', 'retention', 'advocacy'], optionLabels: { tofu_awareness: 'Top: awareness', mofu_consideration: 'Middle: consideration', bofu_decision: 'Bottom: decision' }, section: 'strategy' },
+      'strategy.audience': { type: 'text', label: 'Audience', placeholder: 'e.g., solo founders, 25 to 40, scrolling TikTok after work', section: 'strategy' },
+      'strategy.audience_awareness': { type: 'select', label: 'Audience Awareness Level', options: ['unaware', 'problem_aware', 'solution_aware', 'product_aware', 'most_aware'], placeholder: 'Eugene Schwartz\'s five levels. Colder audiences need the problem first; warm ones need the offer and proof.', section: 'strategy' },
+      'strategy.key_message': { type: 'textarea', label: 'Key Message', placeholder: 'The one thing a viewer should remember. One idea per video.', section: 'strategy' },
+      'strategy.offer': { type: 'text', label: 'Offer', placeholder: 'e.g., 14-day free trial, 20% off launch week, free guide', section: 'strategy' },
+      'strategy.brand': { type: 'text', label: 'Brand / Product', section: 'strategy' },
+      'strategy.distribution': { type: 'select', label: 'Distribution', options: ['organic', 'paid', 'creator_whitelisted', 'organic_then_boost'], optionLabels: { creator_whitelisted: 'Creator whitelisting / Spark Ads / partnership ads', organic_then_boost: 'Organic first, boost the winners' }, section: 'strategy' },
+      'strategy.proof': { type: 'multiselect', label: 'Proof to Show', options: ['testimonial', 'live_demo', 'before_after', 'stats_results', 'ugc_social_proof', 'expert_authority', 'press_logos', 'case_study', 'guarantee', 'founder_story'], optionLabels: { ugc_social_proof: 'UGC / social proof' }, section: 'strategy' },
+      'strategy.kpis': { type: 'multiselect', label: 'KPIs to Optimize For', options: ['hook_rate_3s', 'hold_rate', 'avg_view_duration', 'completion_rate', 'ctr', 'cpa', 'roas', 'shares_saves', 'comments', 'watch_time', 'follows_subscribers'], optionLabels: { hook_rate_3s: 'Hook rate (3-second views)', hold_rate: 'Hold rate (ThruPlays / 15 s)', ctr: 'CTR', cpa: 'CPA', roas: 'ROAS' }, section: 'strategy' },
+      // Story & structure
+      'story.framework': { type: 'select', label: 'Story Framework', options: ['hook_problem_solution_cta', 'pas', 'aida', 'bab', 'hook_story_offer', 'ugc_ad_formula', 'listicle', 'tutorial_steps', 'myth_vs_fact', 'storytime', 'day_in_the_life', 'comparison_us_vs_them', 'three_act', 'documentary_arc', 'testimonial_arc', 'trailer_build'], optionLabels: { hook_problem_solution_cta: 'Hook, problem, solution, CTA', pas: 'PAS (problem, agitate, solve)', aida: 'AIDA', bab: 'Before, after, bridge', hook_story_offer: 'Hook, story, offer', ugc_ad_formula: 'UGC ad (hook, problem, demo, proof, CTA)' }, section: 'story' },
+      'story.tone': { type: 'multiselect', label: 'Tone', options: ['authentic_lo_fi', 'polished_premium', 'funny', 'urgent', 'calm_trustworthy', 'inspiring', 'educational', 'edgy', 'emotional', 'nostalgic'], section: 'story' },
+      'story.open_loops': { type: 'checkbox', label: 'Use open loops (tease the payoff, resolve it later)', section: 'story' },
+      'story.payoff_placement': { type: 'select', label: 'Payoff Placement', options: ['result_first_then_how', 'build_to_end_reveal', 'payoff_every_section'], section: 'story' },
+      'story.beats': { type: 'textarea', label: 'Beats / Paper Edit', placeholder: '0:00–0:03 hook: result on screen\n0:03–0:12 problem in their words\n0:12–0:35 demo and proof\n0:35–0:45 offer and CTA', section: 'story' },
+      // Hook
+      'hook.types': { type: 'multiselect', label: 'Hook Types', options: ['question', 'bold_claim', 'contrarian', 'curiosity_gap', 'pattern_interrupt', 'result_first', 'pain_point', 'surprising_stat', 'stop_doing_this', 'list_promise', 'audience_callout', 'before_after', 'visually_satisfying', 'trend_sound'], section: 'hook' },
+      'hook.visual': { type: 'select', label: 'Opening Visual', options: ['in_motion_first_frame', 'face_close_up', 'product_hero', 'text_overlay_hook', 'cold_open_broll', 'split_screen', 'green_screen'], optionLabels: { cold_open_broll: 'Cold open on B-roll' }, placeholder: 'The first frame is the thumbnail in the feed: start mid-action, never on a logo.', section: 'hook' },
+      'hook.on_screen_text': { type: 'text', label: 'On-Screen Hook Text', placeholder: 'e.g., I cut our ad cost in half with one edit', section: 'hook' },
+      'hook.spoken_line': { type: 'text', label: 'Spoken Hook Line', section: 'hook' },
+      'hook.window': { type: 'select', label: 'Hook Window', options: ['1s', '2s', '3s'], default: '3s', section: 'hook' },
+      'hook.test_variants': { type: 'checkbox', label: 'Cut alternate hooks for testing', section: 'hook' },
+      'hook.variants': { type: 'select', label: 'Hook Variants', options: ['2', '3', '5'], default: '3', section: 'hook', condition: 'hook.test_variants' },
+      // Pacing & cuts
+      'pacing.style': { type: 'select', label: 'Pacing Style', options: ['fast_jump_cut', 'music_driven', 'conversational', 'cinematic', 'documentary', 'montage'], section: 'pacing' },
+      'pacing.avg_shot_length': { type: 'select', label: 'Average Shot Length', options: ['under_1s', '1_2s', '2_4s', '4_8s', 'over_8s'], optionLabels: { under_1s: 'Under 1 s', '1_2s': '1 to 2 s', '2_4s': '2 to 4 s', '4_8s': '4 to 8 s', over_8s: 'Over 8 s' }, section: 'pacing' },
+      'pacing.interrupt_every': { type: 'select', label: 'Visual Change Every', options: ['2_3s', '3_5s', '5_8s', '8_15s'], optionLabels: { '2_3s': '2 to 3 s', '3_5s': '3 to 5 s', '5_8s': '5 to 8 s', '8_15s': '8 to 15 s' }, placeholder: 'A new angle, zoom, B-roll or text pop on this rhythm keeps the hold rate up.', section: 'pacing' },
+      'pacing.retention_devices': { type: 'multiselect', label: 'Retention Devices', options: ['punch_in_zoom', 'broll_cutaway', 'text_pop', 'sfx_hit', 'riser', 'open_loop', 'progress_bar', 'chapter_markers', 'mid_video_rehook', 'callback', 'seamless_loop_ending'], optionLabels: { broll_cutaway: 'B-roll cutaway', sfx_hit: 'SFX hit', mid_video_rehook: 'Mid-video re-hook' }, section: 'pacing' },
+      'pacing.techniques': { type: 'multiselect', label: 'Cut Techniques', options: ['j_cut', 'l_cut', 'match_cut', 'cut_on_action', 'jump_cut', 'cross_cut', 'smash_cut', 'cutaway', 'insert', 'speed_ramp', 'freeze_frame', 'reaction_cut', 'invisible_cut'], optionLabels: { j_cut: 'J-cut', l_cut: 'L-cut' }, section: 'pacing' },
+      'pacing.dead_air': { type: 'select', label: 'Pauses', options: ['remove_all', 'tighten_keep_breaths', 'natural'], default: 'tighten_keep_breaths', section: 'pacing' },
+      'pacing.remove_fillers': { type: 'checkbox', label: 'Remove filler words and false starts', default: true, section: 'pacing' },
+      'pacing.multicam': { type: 'checkbox', label: 'Multicam: cut between angles on speaker and emphasis', section: 'pacing' },
+      // Visuals
+      'visuals.broll_strategy': { type: 'select', label: 'B-roll Strategy', options: ['cover_every_claim', 'illustrative_metaphor', 'product_in_use', 'minimal'], section: 'visuals' },
+      'visuals.broll_sources': { type: 'multiselect', label: 'B-roll Sources', options: ['shot_footage', 'stock', 'screen_capture', 'ai_generated', 'archival'], section: 'visuals' },
+      'visuals.graphics': { type: 'multiselect', label: 'Graphics', options: ['lower_thirds', 'kinetic_text', 'callouts_arrows', 'data_charts', 'logo_bug', 'stickers_reactions', 'end_screen_elements', 'progress_bar'], section: 'visuals' },
+      'visuals.transitions': { type: 'multiselect', label: 'Transitions', options: ['hard_cut_only', 'dissolve', 'dip_to_black', 'whip', 'zoom', 'glitch', 'masked_wipe', 'light_leak'], section: 'visuals' },
+      'visuals.brand_kit': { type: 'text', label: 'Brand Kit', placeholder: 'Fonts, colors, logo placement and do-nots', section: 'visuals' },
+      // Captions
+      'captions.burn_in': { type: 'checkbox', label: 'Burn in captions (most social video plays muted)', default: true, section: 'captions' },
+      'captions.style': { type: 'select', label: 'Caption Style', options: ['word_by_word_highlight', 'karaoke', 'two_line_subtitles', 'minimal_lowercase', 'bold_creator_outline'], section: 'captions', condition: 'captions.burn_in' },
+      'captions.position': { type: 'select', label: 'Caption Position', options: ['inside_platform_safe_zone', 'center', 'upper_third', 'lower_third'], default: 'inside_platform_safe_zone', section: 'captions', condition: 'captions.burn_in' },
+      'captions.max_words_per_line': { type: 'number', label: 'Max Words per Line', min: 1, max: 10, section: 'captions', condition: 'captions.burn_in' },
+      'captions.keyword_emphasis': { type: 'checkbox', label: 'Highlight keywords in the brand color', section: 'captions', condition: 'captions.burn_in' },
+      'captions.languages': { type: 'text', label: 'Caption Languages', placeholder: 'e.g., English, Spanish, Portuguese', section: 'captions' },
+      'captions.export_srt': { type: 'checkbox', label: 'Export SRT / VTT files (accessibility and search)', default: true, section: 'captions' },
+      // Color
+      'color.workflow': { type: 'select', label: 'Color Workflow', options: ['correct_only', 'correct_and_grade', 'match_reference', 'lut_based', 'aces_managed'], optionLabels: { lut_based: 'LUT-based', aces_managed: 'ACES managed' }, section: 'color' },
+      'color.look': { type: 'select', label: 'Look', options: ['natural_clean', 'bright_airy', 'warm_film', 'teal_orange', 'moody_desaturated', 'high_contrast_punchy', 'vintage_grain', 'black_white', 'brand_matched'], section: 'color' },
+      'color.skin_tone_priority': { type: 'checkbox', label: 'Protect natural skin tones', default: true, section: 'color' },
+      'color.output_space': { type: 'select', label: 'Output Color Space', options: ['rec709_g24', 'srgb_web', 'hlg', 'pq_hdr'], optionLabels: { rec709_g24: 'Rec.709 gamma 2.4', srgb_web: 'sRGB / web', hlg: 'HDR (HLG)', pq_hdr: 'HDR (PQ)' }, section: 'color' },
+      // Sound
+      'sound.music': { type: 'select', label: 'Music', options: ['platform_trending_sound', 'licensed_stock', 'original_score', 'sonic_logo_only', 'no_music'], section: 'sound' },
+      'sound.music_notes': { type: 'text', label: 'Music Notes', placeholder: 'Genre, BPM, energy curve, where the drop lands', section: 'sound' },
+      'sound.cut_to_beat': { type: 'checkbox', label: 'Cut to the beat', section: 'sound' },
+      'sound.sfx': { type: 'multiselect', label: 'Sound Design', options: ['whooshes', 'risers', 'hits_impacts', 'pops_clicks', 'ambience', 'foley', 'record_scratch'], section: 'sound' },
+      'sound.dialogue_cleanup': { type: 'multiselect', label: 'Dialogue Cleanup', options: ['noise_reduction', 'voice_isolation', 'de_ess', 'eq', 'compression', 'room_tone_fill'], optionLabels: { eq: 'EQ' }, section: 'sound' },
+      'sound.ducking': { type: 'checkbox', label: 'Duck music under dialogue', default: true, section: 'sound' },
+      'sound.loudness': { type: 'select', label: 'Loudness Target', options: ['lufs_14_social', 'lufs_16_podcast_web', 'lufs_23_ebu_r128', 'lkfs_24_atsc'], optionLabels: { lufs_14_social: '-14 LUFS, -1 dBTP (YouTube, social, streaming)', lufs_16_podcast_web: '-16 LUFS (podcasts, web)', lufs_23_ebu_r128: '-23 LUFS (EBU R128 broadcast)', lkfs_24_atsc: '-24 LKFS (ATSC A/85 broadcast)' }, default: 'lufs_14_social', section: 'sound' },
+      'sound.sound_off_safe': { type: 'checkbox', label: 'Sound-off safe: the story works muted', default: true, section: 'sound' },
+      // Delivery
+      'delivery.hero_platform': { type: 'select', label: 'Hero Platform (master edit)', options: Object.keys(EDIT_PLATFORMS), optionLabels: EDIT_PLATFORMS, section: 'delivery' },
+      'delivery.aspect_ratios': { type: 'multiselect', label: 'Aspect Ratios', options: ['16:9', '9:16', '1:1', '4:5', '2.39:1', 'custom'], section: 'delivery' },
+      'delivery.resolution': { type: 'select', label: 'Resolution', options: ['1080p', '1440p', '4k', '720p'], optionLabels: { '4k': '4K UHD' }, default: '1080p', section: 'delivery' },
+      'delivery.fps': { type: 'select', label: 'Frame Rate', options: ['23.976', '24', '25', '29.97', '30', '50', '60'], section: 'delivery' },
+      'delivery.codec': { type: 'select', label: 'Export Codec', options: ['h264', 'hevc', 'av1', 'prores_422_hq', 'prores_4444', 'dnxhr'], optionLabels: { h264: 'H.264 MP4', hevc: 'HEVC (H.265)', av1: 'AV1', prores_422_hq: 'ProRes 422 HQ (master)', prores_4444: 'ProRes 4444 (alpha)', dnxhr: 'DNxHR' }, default: 'h264', section: 'delivery' },
+      'delivery.ui_safe_zones': { type: 'checkbox', label: 'Keep text and faces clear of platform UI', default: true, section: 'delivery' },
+      'delivery.thumbnail_cover': { type: 'checkbox', label: 'Pick a thumbnail / cover frame', section: 'delivery' },
+      'delivery.cutdowns': { type: 'checkbox', label: 'Make cutdowns for other platforms', default: true, section: 'delivery' },
+      'delivery.cutdown_platforms': { type: 'multiselect', label: 'Cutdown Platforms', options: Object.keys(EDIT_PLATFORMS), optionLabels: EDIT_PLATFORMS, section: 'delivery', condition: 'delivery.cutdowns' },
+      'delivery.cutdown_lengths': { type: 'multiselect', label: 'Cutdown Lengths', options: ['6s', '15s', '30s', '45s', '60s', '90s', '3min', 'long_form'], optionLabels: { '6s': '6 s bumper', '3min': '3 min' }, section: 'delivery', condition: 'delivery.cutdowns' },
+      'delivery.reframe_method': { type: 'select', label: 'Reframing', options: ['ai_auto_reframe', 'manual_keyframed', 'center_safe_framing', 'separate_vertical_edit'], optionLabels: { ai_auto_reframe: 'AI auto reframe, then check', manual_keyframed: 'Manual keyframed reframe' }, section: 'delivery', condition: 'delivery.cutdowns' },
+      'delivery.variant_matrix': { type: 'checkbox', label: 'Build a test matrix (hooks × lengths × CTAs)', section: 'delivery', condition: 'delivery.cutdowns' },
+      // Conversion
+      'conversion.cta_type': { type: 'select', label: 'Call to Action', options: ['follow_subscribe', 'comment_keyword', 'link_in_bio', 'shop_now', 'sign_up', 'book_call', 'download', 'watch_next', 'soft_none'], optionLabels: { comment_keyword: 'Comment a keyword (DM automation)', soft_none: 'Soft / no explicit CTA' }, section: 'conversion' },
+      'conversion.cta_text': { type: 'text', label: 'CTA Wording', placeholder: 'e.g., Comment "EDIT" and I\'ll send you the template', section: 'conversion' },
+      'conversion.cta_placement': { type: 'multiselect', label: 'CTA Placement', options: ['early_soft', 'mid_roll', 'end_card', 'pinned_comment', 'persistent_overlay'], section: 'conversion' },
+      'conversion.post_copy': { type: 'checkbox', label: 'Write post copy per platform (title, caption, hashtags, description)', section: 'conversion' },
+      'conversion.seo_keywords': { type: 'text', label: 'Search Keywords', placeholder: 'Words people search on YouTube and TikTok; say them early and put them in captions', section: 'conversion' },
+      // Compliance
+      'compliance.checks': { type: 'multiselect', label: 'Rights & Policy Checks', options: ['music_license', 'ai_disclosure_label', 'paid_partnership_label', 'claims_substantiation', 'talent_releases', 'trademark_clearance', 'originality_reused_content', 'flash_safety', 'ad_policy_review'], optionLabels: { ai_disclosure_label: 'AI-content disclosure label', originality_reused_content: 'Originality (reused-content rules)' }, section: 'compliance' },
+      // Output
+      'output.format': { type: 'select', label: 'Response Format', options: ['structured_edit_plan', 'timecoded_table', 'step_by_step', 'json_spec', 'checklist'], optionLabels: { json_spec: 'JSON spec' }, default: 'structured_edit_plan', section: 'output' },
+      'output.include_rationale': { type: 'checkbox', label: 'Explain the editorial and marketing reason for each choice', default: true, section: 'output' },
+      'output.include_qc_checklist': { type: 'checkbox', label: 'Include a QC checklist before export', default: true, section: 'output' },
+      'output.include_timecodes': { type: 'checkbox', label: 'Reference timecodes', section: 'output' },
+      'output.variations': { type: 'select', label: 'Alternative Edit Plans', options: ['1', '2', '3'], default: '1', section: 'output' },
+      'output.additional_instructions': { type: 'textarea', label: 'Additional Instructions', placeholder: 'Deadline, review rounds, things to avoid, links to references...', section: 'output' },
+    };
+
+    const SCHEMAS = { image: IMAGE_SCHEMA, video: VIDEO_SCHEMA, videoedit: VIDEOEDIT_SCHEMA, motion: MOTION_SCHEMA, aftereffects: AE_SCHEMA, llm: LLM_SCHEMA, dev: DEV_SCHEMA, marketing: MARKETING_SCHEMA, vibe: VIBE_SCHEMA, frontend: FRONTEND_SCHEMA, android: ANDROID_SCHEMA, ios: IOS_SCHEMA, pm: PM_SCHEMA, loop: LOOP_SCHEMA, audio: AUDIO_SCHEMA, agent: AGENT_SCHEMA };
 
     const SELECT_SENTINELS = ['', 'none', 'ask_me', 'best_fit'];
     const SENTINEL_LABELS = {
@@ -1715,7 +1867,8 @@
     const TYPE_META = {
       image:        { group: 'media',    title: 'Image Prompt', shortTitle: 'Image', desc: 'Stills for GPT Image 2.5, Nano Banana 2, Midjourney V8.2, FLUX.2, Seedream, Ideogram and local diffusion.', pasteTarget: 'ChatGPT, Gemini, Midjourney, or your image generator' },
       video:        { group: 'media',    title: 'Video Prompt', shortTitle: 'Video', desc: 'Clips for Gemini Omni, Veo 3.1, Kling 3, Seedance, Runway and Luma Ray3, with shot lists and dialogue.', pasteTarget: 'Gemini, Kling, Runway, or your video generator' },
-      motion:       { group: 'media',    title: 'Motion Design Prompt', shortTitle: 'Motion Design', desc: 'Briefs for logo reveals, kinetic type, UI motion and explainers, in any motion tool or AI video model.', pasteTarget: 'Claude, ChatGPT, an AI video model, or your motion tool' },
+      videoedit:    { group: 'media',    title: 'Video Editing Prompt', shortTitle: 'Video Editing', desc: 'Edit plans for real footage: hooks, pacing, captions, sound and platform cutdowns that convert.', pasteTarget: 'Premiere, Resolve, Final Cut, CapCut, Descript, Claude, ChatGPT, or your editor' },
+      motion:      { group: 'media',    title: 'Motion Design Prompt', shortTitle: 'Motion Design', desc: 'Briefs for logo reveals, kinetic type, UI motion and explainers, in any motion tool or AI video model.', pasteTarget: 'Claude, ChatGPT, an AI video model, or your motion tool' },
       aftereffects: { group: 'media',    title: 'After Effects Prompt', shortTitle: 'After Effects', desc: 'AE 26 build instructions: comps, expressions, ExtendScript, Duik rigs, Advanced 3D and MOGRTs.', pasteTarget: 'Claude, ChatGPT, the AE AI Assistant, or an AE MCP server' },
       audio:        { group: 'media',    title: 'Audio Prompt', shortTitle: 'Audio', desc: 'Songs, voice and sound effects for Suno v6, ElevenLabs v3, Lyria 3.5 and Stable Audio 3.', pasteTarget: 'Suno, ElevenLabs, Gemini, or your audio generator' },
       llm:          { group: 'language', title: 'LLM Prompt', shortTitle: 'LLM', desc: 'System prompts and tasks for Claude, GPT-6, Gemini 3.8, Grok and open-weight models.', pasteTarget: 'Claude, ChatGPT, Gemini, or your LLM' },
@@ -1762,6 +1915,23 @@
         transitions: { title: 'Transitions', desc: 'Scene transitions' },
         text: { title: 'Text Rendering', desc: 'Text inside the video' },
         advanced: { title: 'Advanced', desc: 'Fine-tuning options' },
+      },
+      videoedit: {
+        intent:     { title: 'Vision',                 desc: 'The footage you have and the video it should become' },
+        project:    { title: 'Project & Footage',      desc: 'Edit type, footage, runtime, script, color profile' },
+        workflow:   { title: 'Editor & Workflow',      desc: 'Editing tool, deliverable, experience, automation' },
+        strategy:   { title: 'Marketing Strategy',     desc: 'Objective, funnel stage, awareness, proof, KPIs' },
+        story:      { title: 'Story & Structure',      desc: 'Framework, tone, open loops, paper edit' },
+        hook:       { title: 'Hook',                   desc: 'The first 3 seconds, hook types, test variants' },
+        pacing:     { title: 'Pacing & Cuts',          desc: 'Rhythm, retention devices, cut techniques, pauses' },
+        visuals:    { title: 'B-roll & Graphics',      desc: 'B-roll, graphics, transitions, brand kit' },
+        captions:   { title: 'Captions',               desc: 'Burned-in style, position, languages, SRT' },
+        color:      { title: 'Color',                  desc: 'Correction, grade, look, output space' },
+        sound:      { title: 'Sound',                  desc: 'Music, SFX, dialogue cleanup, loudness' },
+        delivery:   { title: 'Platforms & Cutdowns',   desc: 'Hero platform, ratios, specs, cutdowns, test matrix' },
+        conversion: { title: 'CTA & Post Copy',        desc: 'Call to action, placement, captions, keywords' },
+        compliance: { title: 'Rights & Policy',        desc: 'Music, disclosures, claims, releases, originality' },
+        output:     { title: 'Response Format',        desc: 'Plan format, rationale, QC, alternatives' },
       },
       motion: {
         intent:        { title: 'Vision',            desc: 'Describe the motion piece' },
@@ -2125,6 +2295,104 @@
           'audio.native_audio': false,
           'style.medium': 'digital_illustration',
         }
+      },
+      videoedit: {
+        'UGC Paid Social Ad (3 hooks)': {
+          'project.edit_type': 'ugc_ad', 'project.footage': ['ugc_creator_clips', 'product_shots', 'phone_vertical'],
+          'workflow.editor': 'capcut', 'workflow.output_kind': 'timecoded_cut_list', 'workflow.automation': ['auto_captions', 'silence_removal', 'beat_detection'],
+          'strategy.objective': 'conversion_sales', 'strategy.funnel_stage': 'bofu_decision', 'strategy.audience_awareness': 'solution_aware', 'strategy.distribution': 'creator_whitelisted',
+          'strategy.proof': ['live_demo', 'before_after', 'ugc_social_proof'], 'strategy.kpis': ['hook_rate_3s', 'hold_rate', 'ctr', 'cpa', 'roas'],
+          'story.framework': 'ugc_ad_formula', 'story.tone': ['authentic_lo_fi', 'urgent'], 'story.payoff_placement': 'result_first_then_how',
+          'hook.types': ['pain_point', 'result_first', 'audience_callout'], 'hook.visual': 'in_motion_first_frame', 'hook.window': '2s', 'hook.test_variants': true, 'hook.variants': '3',
+          'pacing.style': 'fast_jump_cut', 'pacing.avg_shot_length': '1_2s', 'pacing.interrupt_every': '2_3s', 'pacing.retention_devices': ['punch_in_zoom', 'text_pop', 'sfx_hit'],
+          'captions.style': 'bold_creator_outline', 'captions.max_words_per_line': 3, 'captions.keyword_emphasis': true,
+          'sound.music': 'platform_trending_sound', 'sound.sfx': ['whooshes', 'pops_clicks'],
+          'delivery.hero_platform': 'tiktok', 'delivery.aspect_ratios': ['9:16', '4:5'], 'delivery.cutdown_platforms': ['instagram_reels', 'facebook', 'youtube_shorts'],
+          'delivery.cutdown_lengths': ['15s', '30s'], 'delivery.reframe_method': 'center_safe_framing', 'delivery.variant_matrix': true,
+          'conversion.cta_type': 'shop_now', 'conversion.cta_placement': ['end_card', 'persistent_overlay'],
+          'compliance.checks': ['paid_partnership_label', 'claims_substantiation', 'music_license', 'ad_policy_review'],
+          'output.format': 'timecoded_table',
+        },
+        'Podcast to Shorts Repurpose': {
+          'project.edit_type': 'podcast_video', 'project.footage': ['podcast_multicam'], 'project.raw_runtime': '75 min episode, 3 cameras',
+          'workflow.editor': 'descript', 'workflow.output_kind': 'ai_co_editor_commands', 'workflow.automation': ['transcript_editing', 'filler_word_removal', 'multicam_auto_switch', 'ai_clipping', 'auto_captions', 'voice_isolation'],
+          'strategy.objective': 'awareness_reach', 'strategy.funnel_stage': 'tofu_awareness', 'strategy.audience_awareness': 'problem_aware', 'strategy.distribution': 'organic',
+          'strategy.kpis': ['hook_rate_3s', 'avg_view_duration', 'shares_saves', 'follows_subscribers'],
+          'story.framework': 'hook_story_offer', 'story.open_loops': true, 'story.tone': ['educational', 'authentic_lo_fi'],
+          'hook.types': ['contrarian', 'curiosity_gap', 'bold_claim'], 'hook.visual': 'face_close_up', 'hook.window': '3s',
+          'pacing.style': 'conversational', 'pacing.dead_air': 'remove_all', 'pacing.multicam': true, 'pacing.retention_devices': ['punch_in_zoom', 'text_pop', 'seamless_loop_ending'],
+          'captions.style': 'word_by_word_highlight', 'captions.max_words_per_line': 4, 'captions.keyword_emphasis': true,
+          'sound.music': 'no_music', 'sound.dialogue_cleanup': ['voice_isolation', 'compression'],
+          'delivery.hero_platform': 'youtube_shorts', 'delivery.aspect_ratios': ['9:16'], 'delivery.cutdown_platforms': ['tiktok', 'instagram_reels', 'linkedin'],
+          'delivery.cutdown_lengths': ['30s', '60s', '90s'], 'delivery.reframe_method': 'ai_auto_reframe',
+          'conversion.cta_type': 'comment_keyword', 'conversion.cta_text': 'Comment "EPISODE" for the full conversation', 'conversion.post_copy': true,
+          'compliance.checks': ['originality_reused_content', 'talent_releases'],
+        },
+        'YouTube Long-form Retention Edit': {
+          'project.edit_type': 'youtube_long_form', 'project.footage': ['a_roll_talking_head', 'b_roll', 'screen_recording'], 'project.script_status': 'outline',
+          'workflow.editor': 'premiere_pro', 'workflow.output_kind': 'paper_edit_plan', 'workflow.automation': ['transcript_editing', 'filler_word_removal', 'silence_removal', 'footage_search', 'voice_isolation'],
+          'strategy.objective': 'education_authority', 'strategy.funnel_stage': 'mofu_consideration', 'strategy.kpis': ['avg_view_duration', 'watch_time', 'ctr', 'follows_subscribers'],
+          'story.framework': 'tutorial_steps', 'story.open_loops': true, 'story.payoff_placement': 'payoff_every_section',
+          'hook.types': ['result_first', 'list_promise'], 'hook.visual': 'cold_open_broll',
+          'pacing.style': 'conversational', 'pacing.interrupt_every': '5_8s', 'pacing.retention_devices': ['punch_in_zoom', 'broll_cutaway', 'chapter_markers', 'mid_video_rehook', 'callback'],
+          'pacing.techniques': ['j_cut', 'l_cut', 'jump_cut', 'cutaway'],
+          'visuals.broll_strategy': 'cover_every_claim', 'visuals.graphics': ['lower_thirds', 'callouts_arrows', 'end_screen_elements'],
+          'captions.burn_in': false, 'captions.export_srt': true,
+          'color.workflow': 'correct_and_grade', 'color.look': 'natural_clean',
+          'sound.music': 'licensed_stock', 'sound.dialogue_cleanup': ['noise_reduction', 'eq', 'compression'], 'sound.loudness': 'lufs_14_social',
+          'delivery.hero_platform': 'youtube', 'delivery.aspect_ratios': ['16:9'], 'delivery.resolution': '4k', 'delivery.thumbnail_cover': true,
+          'delivery.cutdown_platforms': ['youtube_shorts'], 'delivery.cutdown_lengths': ['60s'],
+          'conversion.cta_type': 'watch_next', 'conversion.cta_placement': ['mid_roll', 'end_card'], 'conversion.post_copy': true,
+          'output.include_timecodes': true,
+        },
+        'Product Launch Film + Cutdowns': {
+          'project.edit_type': 'brand_film', 'project.footage': ['product_shots', 'b_roll', 'interview_multicam', 'drone'], 'project.script_status': 'full_script', 'project.color_profile': 's_log3',
+          'workflow.editor': 'davinci_resolve', 'workflow.output_kind': 'paper_edit_plan', 'workflow.skill_level': 'professional', 'workflow.automation': ['transcript_editing', 'footage_search', 'scene_edit_detection'],
+          'strategy.objective': 'awareness_reach', 'strategy.funnel_stage': 'tofu_awareness', 'strategy.audience_awareness': 'unaware', 'strategy.distribution': 'paid',
+          'strategy.proof': ['live_demo', 'founder_story'], 'strategy.kpis': ['hook_rate_3s', 'completion_rate', 'ctr'],
+          'story.framework': 'three_act', 'story.tone': ['polished_premium', 'inspiring'], 'story.payoff_placement': 'build_to_end_reveal',
+          'hook.types': ['pattern_interrupt', 'curiosity_gap'], 'hook.visual': 'product_hero',
+          'pacing.style': 'cinematic', 'pacing.techniques': ['match_cut', 'cut_on_action', 'speed_ramp', 'j_cut'],
+          'visuals.transitions': ['hard_cut_only', 'dip_to_black'], 'visuals.graphics': ['kinetic_text', 'logo_bug'],
+          'color.workflow': 'correct_and_grade', 'color.look': 'high_contrast_punchy', 'color.output_space': 'rec709_g24',
+          'sound.music': 'original_score', 'sound.cut_to_beat': true, 'sound.sfx': ['risers', 'hits_impacts', 'whooshes'], 'sound.sound_off_safe': false,
+          'delivery.hero_platform': 'youtube', 'delivery.aspect_ratios': ['16:9', '1:1', '9:16'], 'delivery.codec': 'prores_422_hq',
+          'delivery.cutdown_platforms': ['ctv_ott', 'linkedin', 'instagram_reels'], 'delivery.cutdown_lengths': ['6s', '15s', '30s', '60s'],
+          'delivery.reframe_method': 'manual_keyframed', 'delivery.variant_matrix': true,
+          'conversion.cta_type': 'sign_up', 'conversion.cta_placement': ['end_card'],
+          'compliance.checks': ['music_license', 'talent_releases', 'trademark_clearance', 'flash_safety'],
+        },
+        'B2B Testimonial Case Study (LinkedIn)': {
+          'project.edit_type': 'testimonial_case_study', 'project.footage': ['interview_multicam', 'b_roll', 'screen_recording'], 'project.script_status': 'unscripted_find_the_story',
+          'workflow.editor': 'premiere_pro', 'workflow.output_kind': 'paper_edit_plan', 'workflow.automation': ['transcript_editing', 'auto_captions'],
+          'strategy.objective': 'lead_gen', 'strategy.funnel_stage': 'mofu_consideration', 'strategy.audience_awareness': 'product_aware',
+          'strategy.proof': ['testimonial', 'stats_results', 'case_study'], 'strategy.kpis': ['completion_rate', 'ctr', 'comments'],
+          'story.framework': 'testimonial_arc', 'story.tone': ['calm_trustworthy', 'educational'],
+          'hook.types': ['surprising_stat', 'result_first'], 'hook.visual': 'text_overlay_hook',
+          'pacing.style': 'documentary', 'pacing.techniques': ['l_cut', 'j_cut', 'cutaway'],
+          'visuals.broll_strategy': 'product_in_use', 'visuals.graphics': ['lower_thirds', 'data_charts', 'logo_bug'],
+          'captions.style': 'two_line_subtitles', 'captions.position': 'lower_third',
+          'sound.music': 'licensed_stock', 'sound.sound_off_safe': true,
+          'delivery.hero_platform': 'linkedin', 'delivery.aspect_ratios': ['1:1', '4:5', '16:9'], 'delivery.cutdown_platforms': ['website', 'youtube'], 'delivery.cutdown_lengths': ['30s', '90s'],
+          'conversion.cta_type': 'book_call', 'conversion.post_copy': true,
+          'compliance.checks': ['claims_substantiation', 'talent_releases', 'trademark_clearance'],
+        },
+        'Event Recap Reel': {
+          'project.edit_type': 'event_recap', 'project.footage': ['live_event', 'b_roll', 'phone_vertical', 'drone'],
+          'workflow.editor': 'final_cut_pro', 'workflow.output_kind': 'step_by_step_in_tool', 'workflow.automation': ['beat_detection', 'footage_search', 'auto_reframe'],
+          'strategy.objective': 'engagement', 'strategy.funnel_stage': 'advocacy', 'strategy.kpis': ['shares_saves', 'comments', 'completion_rate'],
+          'story.framework': 'three_act', 'story.tone': ['inspiring', 'emotional'],
+          'hook.types': ['visually_satisfying', 'trend_sound'], 'hook.visual': 'in_motion_first_frame',
+          'pacing.style': 'montage', 'pacing.avg_shot_length': 'under_1s', 'pacing.techniques': ['match_cut', 'speed_ramp', 'cut_on_action'], 'pacing.retention_devices': ['seamless_loop_ending'],
+          'visuals.transitions': ['whip', 'zoom', 'light_leak'],
+          'captions.burn_in': false,
+          'color.workflow': 'correct_and_grade', 'color.look': 'warm_film',
+          'sound.music': 'platform_trending_sound', 'sound.cut_to_beat': true, 'sound.sfx': ['whooshes', 'ambience'],
+          'delivery.hero_platform': 'instagram_reels', 'delivery.aspect_ratios': ['9:16', '16:9'], 'delivery.cutdown_platforms': ['tiktok', 'youtube', 'linkedin'], 'delivery.cutdown_lengths': ['15s', '60s'],
+          'delivery.reframe_method': 'separate_vertical_edit',
+          'conversion.cta_type': 'follow_subscribe',
+          'compliance.checks': ['music_license', 'talent_releases', 'flash_safety'],
+        },
       },
       motion: {
         'Logo Reveal (6s)': {
@@ -3288,7 +3556,7 @@
     // Home index: builders grouped by discipline (TYPE_META.group). Unknown groups fall into "Other".
     const BUILDER_GROUPS = [['media', 'Media'], ['language', 'Language & Agents'], ['software', 'Software'], ['business', 'Business']];
     // Two-letter "element" symbols for the periodic-table home. Unknown builders fall back to their first two letters.
-    const BUILDER_SYMBOLS = { image: 'Im', video: 'Vi', motion: 'Md', aftereffects: 'Ae', audio: 'Au', llm: 'Ll', agent: 'Ag', loop: 'Lp', dev: 'Dv', vibe: 'Vc', frontend: 'Fe', android: 'An', ios: 'Io', marketing: 'Mk', pm: 'Pm' };
+    const BUILDER_SYMBOLS = { image: 'Im', video: 'Vi', videoedit: 'Ed', motion: 'Md', aftereffects: 'Ae', audio: 'Au', llm: 'Ll', agent: 'Ag', loop: 'Lp', dev: 'Dv', vibe: 'Vc', frontend: 'Fe', android: 'An', ios: 'Io', marketing: 'Mk', pm: 'Pm' };
     const builderSymbol = type => BUILDER_SYMBOLS[type] || (TYPE_META[type]?.shortTitle || type).slice(0, 2);
     const builderFamily = type => BUILDER_GROUPS.some(([id]) => id === TYPE_META[type]?.group) ? TYPE_META[type].group : 'pipelines';
     const MODEL_REVIEW_DATE = '2026-09-25';
@@ -3339,7 +3607,7 @@
       'GitHub', 'Vercel', 'Netlify', 'Supabase', 'Firebase', 'WordPress',
       'Notion', 'Airtable', 'Google Docs', 'Google Sheets', 'Shopify',
       'n8n', 'Zapier', 'MindStudio', 'HuggingFace', 'Slack',
-      'After Effects', 'Premiere Pro', 'Jitter', 'Lottie Creator', 'Rive', 'Cavalry', 'Spline',
+      'After Effects', 'Premiere Pro', 'DaVinci Resolve', 'Final Cut Pro', 'CapCut', 'Descript', 'Jitter', 'Lottie Creator', 'Rive', 'Cavalry', 'Spline',
     ];
 
     function ChainBuilder({ onBack, themeMode, setThemeMode }) {
@@ -3990,7 +4258,7 @@
                 {profile && (
                   <div className="mt-3 border border-rule bg-surface">
                     <div className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2 border-b border-rule">
-                      <span className="kicker">Model notes</span>
+                      <span className="kicker">{config.modelProfiles === 'videoedit' ? 'Tool notes' : 'Model notes'}</span>
                       <span className="mono text-xs text-muted">
                         {profile.status !== 'current' && <span className="text-accent uppercase mr-2">{profile.status.replace(/_/g, ' ')}</span>}
                         {profile.api_model_id}

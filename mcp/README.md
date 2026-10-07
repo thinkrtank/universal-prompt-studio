@@ -61,7 +61,7 @@ Stop with Ctrl+C. A token is a shared local-service credential, not an OAuth imp
 
 | Tool | Purpose |
 | --- | --- |
-| `list_builders` | List the fifteen schema-driven builders; chain generation is a separate tool. |
+| `list_builders` | List the sixteen schema-driven builders; chain generation is a separate tool. |
 | `get_builder` | Read a builder's fields, defaults, sections, and sentinel values. |
 | `list_presets` | Read the builder's built-in presets. |
 | `generate_prompt` | Generate nested JSON, matching plain text, and an importable template-library payload. |

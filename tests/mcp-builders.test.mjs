@@ -16,7 +16,7 @@ const call = async (client, name, args) => {
   return { error: res.isError === true, value: JSON.parse(res.content[0].text) };
 };
 // Builders whose schema has a target-model field, and the profile family it uses.
-const PROFILED = { image: 'image', video: 'video', llm: 'llm', audio: 'audio', motion: 'video' };
+const PROFILED = { image: 'image', video: 'video', videoedit: 'videoedit', llm: 'llm', audio: 'audio', motion: 'video' };
 
 async function exerciseAllBuilders(client) {
   const types = Object.keys(core.SCHEMAS);
@@ -83,6 +83,14 @@ async function exerciseGuidanceAndErrors(client) {
   assert.equal(llm.json.model_guidance.api_model_id, 'claude-opus-5-5');
   const suno = (await call(client, 'generate_prompt', { type: 'audio', preset: 'Suno v6 Pop Song' })).value;
   assert.match(suno.json.model_guidance.target_model, /Suno v6/);
+  const edit = (await call(client, 'generate_prompt', { type: 'videoedit', preset: 'Podcast to Shorts Repurpose',
+    data: { 'workflow.automation': ['filler_word_removal', 'beat_detection'] } })).value;
+  assert.match(edit.json.model_guidance.target_model, /Descript/);
+  assert.match(edit.json.model_guidance.native_parameters, /filler word removal: Remove filler words/);
+  assert.match(edit.json.model_guidance.native_parameters, /beat detection: no built-in tool/);
+  assert.equal(edit.json.delivery.hero_platform, 'youtube_shorts');
+  const noCaptions = (await call(client, 'generate_prompt', { type: 'videoedit', data: { 'captions.burn_in': false, 'captions.style': 'karaoke' } })).value;
+  assert.equal(noCaptions.json.captions.style, undefined, 'caption style is hidden when captions are not burned in');
 
   // New builders accept their own fields and presets merge with caller data (caller wins).
   const android = (await call(client, 'generate_prompt', { type: 'android', preset: 'Offline Habit Tracker (first app)', data: { 'stack.target_sdk': '37' } })).value;

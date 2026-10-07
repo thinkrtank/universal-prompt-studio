@@ -4,7 +4,7 @@ import { core } from '../mcp/core.mjs';
 const plain = value => JSON.parse(JSON.stringify(value));
 
 test('every builder default and preset generates JSON and matching plain text', () => {
-  assert.equal(Object.keys(core.SCHEMAS).length, 15);
+  assert.equal(Object.keys(core.SCHEMAS).length, 16);
   for (const type of Object.keys(core.SCHEMAS)) {
     for (const data of [{}, ...Object.values(core.PRESETS[type] || {})]) {
       const output = core.buildPromptObject(type, { ...core.defaultFormData(type), ...data });
